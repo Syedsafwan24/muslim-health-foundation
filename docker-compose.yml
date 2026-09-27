@@ -1,0 +1,24 @@
+# Local development services. Production uses Cloudflare R2 or any S3-compatible store.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mhf
+      POSTGRES_PASSWORD: mhf
+      POSTGRES_DB: mhf
+    ports: ["5433:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+  # S3-compatible object store (MinIO images are no longer published on Docker Hub).
+  storage:
+    image: rustfs/rustfs:latest
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: mhfminio
+      RUSTFS_SECRET_KEY: mhfminio-secret
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [objectdata:/data]
+volumes:
+  pgdata:
+  objectdata:

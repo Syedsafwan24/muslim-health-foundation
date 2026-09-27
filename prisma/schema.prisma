@@ -1,0 +1,651 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────── auth & audit ───────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  GENERAL_SECRETARY
+  COMMITTEE_MEMBER
+  OPERATOR
+  ACCOUNTANT
+  VIEWER
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  passwordHash  String
+  role          Role     @default(OPERATOR)
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+  forceMeetingMode Boolean @default(false) // per-user override, see docs/03
+  failedLoginCount Int     @default(0)     // 5 failures → 15-minute lockout
+  lockedUntil   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  auditLogs     AuditLog[]
+  createdApps   Application[] @relation("createdBy")
+  decidedApps   Application[] @relation("decidedBy")
+  revealGrants  RevealGrant[]
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  RESTORE
+  LOGIN
+  LOGOUT
+  APPROVE
+  REJECT
+  PAY
+  CANCEL_PAYMENT
+  REVEAL_IDENTITY
+  FILE_VIEW
+  FILE_DOWNLOAD
+  EXPORT
+  SETTING_CHANGE
+  MEETING_MODE_TOGGLE
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  actorId    String?
+  actor      User?       @relation(fields: [actorId], references: [id])
+  action     AuditAction
+  entity     String      // "Application", "Payment", ...
+  entityId   String
+  summary    String      // human sentence, never contains PII — use case numbers
+  before     Json?
+  after      Json?
+  reason     String?     // mandatory for REVEAL_IDENTITY
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime    @default(now())
+
+  @@index([entity, entityId])
+  @@index([entityId])
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+}
+
+// ─────────────────────────── people ───────────────────────────
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+enum MaritalStatus {
+  MARRIED
+  UNMARRIED
+  WIDOW
+  WIDOWER
+  DIVORCED
+  UNKNOWN
+}
+enum IdType {
+  AADHAAR
+  VOTER_ID
+  PAN
+  RATION_CARD
+  PASSPORT
+  DRIVING_LICENCE
+  OTHER
+  NONE
+}
+
+model Person {
+  id             String        @id @default(cuid())
+  personCode     String        @unique          // P-000412, used as the Meeting Mode alias
+  fullName       String
+  fatherName     String?
+  husbandName    String?
+  gender         Gender?
+  dateOfBirth    DateTime?
+  ageYears       Int?                            // used when DOB unknown (the common case)
+  ageRecordedAt  DateTime?                       // so age can be aged forward in reports
+  maritalStatus  MaritalStatus @default(UNKNOWN)
+  religion       String?                         // sensitive: never a report dimension
+  mobile         String?
+  altMobile      String?
+  addressLine    String?
+  areaId         String?
+  area           Area?         @relation(fields: [areaId], references: [id])
+  city           String?       @default("Bhatkal")
+  pincode        String?
+  idType         IdType        @default(NONE)
+  idNumberEnc    String?                         // AES-256-GCM ciphertext
+  idNumberLast4  String?
+  isDeceased     Boolean       @default(false)
+  deceasedAt     DateTime?
+  watchFlag      Boolean       @default(false)   // committee attention: repeat/disputed claims
+  watchNote      String?
+  identityHash   String?
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+
+  applicationsAsApplicant Application[] @relation("applicant")
+  applicationsAsPatient   Application[] @relation("patient")
+  attachments             Attachment[]
+
+  @@index([fullName])
+  @@index([identityHash])
+  @@index([mobile])
+}
+
+model Area {                                     // mohalla / ward / village
+  id       String   @id @default(cuid())
+  name     String   @unique
+  taluk    String?  @default("Bhatkal")
+  district String?  @default("Uttara Kannada")
+  persons  Person[]
+  deletedAt DateTime?
+}
+
+// ─────────────────────────── masters ───────────────────────────
+
+enum HospitalType {
+  GOVERNMENT
+  PRIVATE
+  TRUST
+  CLINIC
+  DIAGNOSTIC
+  PHARMACY
+  OTHER
+}
+
+model Hospital {
+  id            String       @id @default(cuid())
+  name          String
+  type          HospitalType @default(PRIVATE)
+  addressLine   String?
+  city          String?
+  state         String?      @default("Karnataka")
+  phone         String?
+  contactPerson String?
+  contactPhone  String?
+  email         String?
+  isEmpanelled  Boolean      @default(false)     // has an arrangement with MHF
+  discountNote  String?
+  bankName      String?
+  bankAccountLast4 String?
+  isActive      Boolean      @default(true)
+  notes         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime?
+
+  applications  Application[]
+  payments      Payment[]
+
+  @@index([name])
+}
+
+model DiseaseCategory {
+  id        String    @id @default(cuid())
+  name      String    @unique                    // Cardiac, Renal, Oncology, Maternity, Trauma...
+  colorToken String?                             // maps to a chart colour token
+  sortOrder Int       @default(0)
+  diseases  Disease[]
+  deletedAt DateTime?
+}
+
+model Disease {
+  id         String          @id @default(cuid())
+  name       String
+  categoryId String
+  category   DiseaseCategory @relation(fields: [categoryId], references: [id])
+  isChronic  Boolean         @default(false)     // dialysis, cancer → recurring support likely
+  notes      String?
+  deletedAt  DateTime?
+
+  applications Application[]
+
+  @@unique([categoryId, name])
+}
+
+model Bank {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  branch    String?
+  accountLast4 String?
+  isOwnAccount Boolean @default(false)           // MHF's own account, used as cheque source
+  payments  Payment[]
+  donations Donation[]
+  deletedAt DateTime?
+}
+
+// ─────────────────────────── funds ───────────────────────────
+
+enum FundType {
+  ZAKAT
+  SADAQAH
+  GENERAL
+  OTHER
+}
+
+// The client has confirmed that all aid disbursed is Zakat. Seed ONE active fund of type
+// ZAKAT. Keep the table and the enum so a non-Zakat pool can be switched on later without a
+// migration. While exactly one fund is active, hide every fund selector in the UI and apply
+// the fund automatically.
+
+enum ZakatCategory {
+  FAQIR // destitute
+  MISKEEN // needy
+  GHARIM // burdened by debt
+  IBN_SABIL // stranded traveller
+  OTHER
+}
+
+model Fund {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  type           FundType
+  isRestricted   Boolean  @default(false)        // ZAKAT → true
+  allowsExpenses Boolean  @default(true)         // ZAKAT → false
+  openingBalancePaise BigInt @default(0)
+  isActive       Boolean  @default(true)
+  deletedAt      DateTime?
+
+  donations Donation[]
+  payments  Payment[]
+  expenses  Expense[]
+}
+
+// ─────────────────────────── applications ───────────────────────────
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_VERIFICATION
+  ON_HOLD
+  COMMITTEE_REVIEW
+  APPROVED
+  PARTIALLY_APPROVED
+  REJECTED
+  DEFERRED
+  PAYMENT_PENDING
+  PAID
+  CLOSED
+}
+enum Priority {
+  ROUTINE
+  URGENT
+  EMERGENCY
+}
+enum PatientRelation {
+  SELF
+  SPOUSE
+  SON
+  DAUGHTER
+  FATHER
+  MOTHER
+  BROTHER
+  SISTER
+  GRANDPARENT
+  GRANDCHILD
+  RELATIVE
+  NEIGHBOUR
+  OTHER
+}
+
+model Application {
+  id              String            @id @default(cuid())
+  caseNo          String            @unique       // MHF/2026-27/00123
+  fiscalYear      String                          // "2026-27"
+  serial          Int                             // sequence within fiscalYear
+  applicationDate DateTime          @default(now())
+
+  // Block A + B
+  applicantId     String
+  applicant       Person            @relation("applicant", fields: [applicantId], references: [id])
+  patientId       String
+  patient         Person            @relation("patient",  fields: [patientId],  references: [id])
+  patientIsApplicant Boolean        @default(false)
+  relation        PatientRelation   @default(SELF)
+  dependentCount  Int?                            // "Dependent" on the paper form
+
+  // Block C
+  introducedByName String?                        // "Introduce by" — free text, often a trustee
+  introducedByPhone String?
+  attendingDoctor String?
+  hospitalId      String?
+  hospital        Hospital?         @relation(fields: [hospitalId], references: [id])
+  diseaseId       String?
+  disease         Disease?          @relation(fields: [diseaseId], references: [id])
+  majorProblem    String?                         // free text, clinical summary
+  approxExpensePaise BigInt?                      // "Approx Hospital Expenses"
+  requestedAmountPaise BigInt?
+  admissionDate   DateTime?
+  dischargeDate   DateTime?
+
+  // Zakat eligibility — ALL aid is Zakat, so this block is mandatory before APPROVED.
+  // Confirm the exact field list with the client (open question 4) before finalising.
+  zakatCategory        ZakatCategory?
+  monthlyIncomePaise   BigInt?
+  dependentsSupported  Int?
+  ownsHouse            Boolean?
+  ownsAgriLand         Boolean?
+  savingsOrGoldNote    String?
+  existingDebtPaise    BigInt?
+  eligibilityNote      String?
+  eligibilityVerifiedById String?
+  eligibilityVerifiedAt   DateTime?
+  // applicant authorises MHF to pay the hospital on the patient's behalf (open question 3)
+  authorisationReceived Boolean @default(false)
+
+  // Decision
+  status          ApplicationStatus @default(DRAFT)
+  priority        Priority          @default(ROUTINE)
+  approvedAmountPaise BigInt?
+  decisionNote    String?
+  rejectionReason String?
+  decidedById     String?
+  decidedBy       User?             @relation("decidedBy", fields: [decidedById], references: [id])
+  decidedAt       DateTime?
+  meetingId       String?
+  meeting         CommitteeMeeting? @relation(fields: [meetingId], references: [id])
+
+  createdById     String
+  createdBy       User              @relation("createdBy", fields: [createdById], references: [id])
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  deletedAt       DateTime?
+
+  payments        Payment[]
+  attachments     Attachment[]
+  statusHistory   ApplicationStatusHistory[]
+
+  @@index([status, applicationDate])
+  @@index([fiscalYear])
+  @@index([applicantId])
+  @@index([patientId])
+  @@index([hospitalId])
+  @@index([diseaseId])
+}
+
+model ApplicationStatusHistory {
+  id            String            @id @default(cuid())
+  applicationId String
+  application   Application       @relation(fields: [applicationId], references: [id])
+  fromStatus    ApplicationStatus?
+  toStatus      ApplicationStatus
+  note          String?
+  changedById   String
+  changedAt     DateTime          @default(now())
+
+  @@index([applicationId, changedAt])
+}
+
+model CommitteeMeeting {
+  id          String   @id @default(cuid())
+  title       String                              // "Committee Meeting — 12 Oct 2026"
+  meetingDate DateTime
+  venue       String?
+  attendees   String?                             // free text list for v1
+  minutes     String?
+  isLocked    Boolean  @default(false)            // locked → decisions immutable
+  createdAt   DateTime @default(now())
+  deletedAt   DateTime?
+
+  applications Application[]
+}
+
+// ─────────────────────────── money out ───────────────────────────
+
+enum PaymentMode {
+  CHEQUE
+  NEFT
+  RTGS
+  IMPS
+  UPI
+  CASH
+  DD
+}
+enum PaymentTowards {
+  HOSPITAL_BILL
+  MEDICINES
+  INVESTIGATION
+  SURGERY
+  IMPLANT
+  TRAVEL
+  APPLICANT_DIRECT
+  OTHER
+}
+enum PaymentStatus {
+  PENDING
+  ISSUED
+  CLEARED
+  BOUNCED
+  CANCELLED
+}
+
+model Payment {
+  id            String         @id @default(cuid())
+  voucherNo     String         @unique            // V/2026-27/00456
+  applicationId String
+  application   Application    @relation(fields: [applicationId], references: [id])
+  fundId        String
+  fund          Fund           @relation(fields: [fundId], references: [id])
+
+  amountPaise   BigInt
+  mode          PaymentMode    @default(CHEQUE)
+  chequeNo      String?
+  bankId        String?
+  bank          Bank?          @relation(fields: [bankId], references: [id])
+  referenceNo   String?                           // UTR / transaction ref
+  paymentDate   DateTime
+  towards       PaymentTowards @default(HOSPITAL_BILL)
+
+  payeeType     String         @default("HOSPITAL") // HOSPITAL | APPLICANT | PATIENT | OTHER
+  hospitalId    String?
+  hospital      Hospital?      @relation(fields: [hospitalId], references: [id])
+  payeeName     String?                           // when payee is not a known hospital
+
+  status        PaymentStatus  @default(PENDING)
+  clearedAt     DateTime?
+  bouncedReason String?
+  reversalOfId  String?        @unique             // counter-entry pointer
+  remark        String?
+
+  createdById   String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+
+  attachments   Attachment[]
+
+  @@index([paymentDate])
+  @@index([status])
+  @@index([hospitalId])
+  @@index([applicationId])
+}
+
+enum ExpenseCategory {
+  RENT
+  SALARY
+  UTILITIES
+  STATIONERY
+  TRANSPORT
+  EVENT
+  MAINTENANCE
+  BANK_CHARGES
+  MISC
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  voucherNo   String          @unique             // E/2026-27/00089
+  category    ExpenseCategory
+  description String
+  amountPaise BigInt
+  expenseDate DateTime
+  fundId      String
+  fund        Fund            @relation(fields: [fundId], references: [id])
+  paidTo      String?
+  mode        PaymentMode     @default(CASH)
+  referenceNo String?
+  createdById String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  deletedAt   DateTime?
+
+  attachments Attachment[]
+
+  @@index([expenseDate])
+  @@index([category])
+}
+
+// ─────────────────────────── money in ───────────────────────────
+
+enum DonorType {
+  INDIVIDUAL
+  BUSINESS
+  TRUST
+  GOVERNMENT
+  ANONYMOUS
+}
+
+model Donor {
+  id          String    @id @default(cuid())
+  donorCode   String    @unique                   // D-00231
+  name        String
+  type        DonorType @default(INDIVIDUAL)
+  phone       String?
+  email       String?
+  addressLine String?
+  city        String?
+  country     String?   @default("India")
+  panLast4    String?                             // for 80G receipts
+  isAnonymous Boolean   @default(false)           // hide name on all reports and receipts
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  donations   Donation[]
+
+  @@index([name])
+  @@index([phone])
+}
+
+model Donation {
+  id          String      @id @default(cuid())
+  receiptNo   String      @unique                 // R/2026-27/01234
+  donorId     String
+  donor       Donor       @relation(fields: [donorId], references: [id])
+  fundId      String
+  fund        Fund        @relation(fields: [fundId], references: [id])
+  amountPaise BigInt
+  donationDate DateTime
+  mode        PaymentMode @default(CASH)
+  bankId      String?
+  bank        Bank?       @relation(fields: [bankId], references: [id])
+  referenceNo String?
+  chequeNo    String?
+  purposeNote String?                             // "for dialysis cases", earmarking
+  earmarkApplicationId String?                    // donor gave for a specific case
+  isReceiptIssued Boolean @default(false)
+  cancelledAt DateTime?                           // cancelled → receipt number void, never reused
+  cancelReason String?
+  createdById String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+
+  attachments Attachment[]
+
+  @@index([donationDate])
+  @@index([donorId])
+}
+
+// ─────────────────────────── files ───────────────────────────
+
+enum AttachmentType {
+  GOVT_ID // Aadhaar / ration card / voter ID
+  HOSPITAL_BILL
+  HOSPITAL_LETTER // official letter / estimate from the hospital
+  MHF_APPLICATION_FORM // scan of the signed paper form
+  AUTHORISATION_FORM // applicant authorises MHF to pay the hospital on their behalf
+  DISCHARGE_SUMMARY
+  PRESCRIPTION
+  LAB_REPORT
+  CHEQUE_COPY
+  RECEIPT
+  DONATION_PROOF
+  EXPENSE_BILL
+  PHOTO
+  OTHER
+}
+
+model Attachment {
+  id            String         @id @default(cuid())
+  type          AttachmentType
+  label         String?
+  storageKey    String         @unique            // object-store key, never exposed to client
+  originalName  String
+  mimeType      String
+  sizeBytes     Int
+  checksumSha256 String?
+  pageCount     Int?
+  containsIdentity Boolean     @default(true)     // false only for anonymous bills — see docs/03
+  verifiedById  String?
+  verifiedAt    DateTime?
+
+  applicationId String?
+  application   Application?   @relation(fields: [applicationId], references: [id])
+  personId      String?
+  person        Person?        @relation(fields: [personId], references: [id])
+  paymentId     String?
+  payment       Payment?       @relation(fields: [paymentId], references: [id])
+  donationId    String?
+  donation      Donation?      @relation(fields: [donationId], references: [id])
+  expenseId     String?
+  expense       Expense?       @relation(fields: [expenseId], references: [id])
+
+  uploadedById  String
+  createdAt     DateTime       @default(now())
+  deletedAt     DateTime?
+
+  @@index([applicationId, type])
+}
+
+// ─────────────────────────── settings ───────────────────────────
+
+model Setting {
+  key       String   @id                          // "org.name", "meetingMode.global", ...
+  value     Json
+  updatedById String?
+  updatedAt DateTime @updatedAt
+}
+
+model Counter {                                   // FY-scoped serial generation, row-locked
+  id     String @id                               // "case:2026-27", "voucher:2026-27"
+  value  Int    @default(0)
+}
+
+// Reveal identity: a 5-minute grant keyed by (userId, applicationId). See docs/03 §5.
+model RevealGrant {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  applicationId String
+  reason        String
+  expiresAt     DateTime
+  endedAt       DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([userId, applicationId, expiresAt])
+}

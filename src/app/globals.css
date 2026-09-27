@@ -1,0 +1,274 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ── Self-hosted IBM Plex (latin + latin-ext, which carries ₹). No runtime font requests. ── */
+@font-face { font-family: "IBM Plex Sans"; font-weight: 400; font-display: swap; src: url("/fonts/ibm-plex-sans-400.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 400; font-display: swap; src: url("/fonts/ibm-plex-sans-400-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 500; font-display: swap; src: url("/fonts/ibm-plex-sans-500.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 500; font-display: swap; src: url("/fonts/ibm-plex-sans-500-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 600; font-display: swap; src: url("/fonts/ibm-plex-sans-600.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 600; font-display: swap; src: url("/fonts/ibm-plex-sans-600-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 400; font-display: swap; src: url("/fonts/ibm-plex-mono-400.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 400; font-display: swap; src: url("/fonts/ibm-plex-mono-400-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 500; font-display: swap; src: url("/fonts/ibm-plex-mono-500.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 500; font-display: swap; src: url("/fonts/ibm-plex-mono-500-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+
+/* ── Design tokens: docs/04-design-system.md §2–4. Do not invent new ones. ── */
+@theme {
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-navy-50: #F2F4FA;
+  --color-navy-100: #E2E7F3;
+  --color-navy-200: #C3CCE6;
+  --color-navy-400: #6C7DAE;
+  --color-navy-600: #2B3D74;
+  --color-navy-700: #1B2A5B; /* seal navy */
+  --color-navy-900: #16213D; /* ink */
+
+  --color-slate-body: #5A6683;
+  --color-rule: #D7DCE7;
+  --color-paper: #EEF1F6;
+  --color-sheet: #FFFFFF;
+
+  --color-approved: #0E7A5F;
+  --color-approved-bg: #E6F2EE;
+  --color-pending: #A86A0B;
+  --color-pending-bg: #FBF1E0;
+  --color-rejected: #A4232C;
+  --color-rejected-bg: #F8E8E9;
+  --color-info: #2B5FA8;
+  --color-info-bg: #E8EFF8;
+  --color-redacted: #4A3E86;
+  --color-redacted-bg: #EEEBF7;
+
+  --color-fund-zakat: #8A6A1F;
+  --color-fund-sadaqah: #0E7A5F;
+  --color-fund-general: #1B2A5B;
+
+  --color-chart-1: #1B2A5B;
+  --color-chart-2: #0E7A5F;
+  --color-chart-3: #A86A0B;
+  --color-chart-4: #4A3E86;
+  --color-chart-5: #2B5FA8;
+  --color-chart-6: #8A6A1F;
+  --color-chart-7: #6E4A6B;
+  --color-chart-8: #4C6B5A;
+
+  --radius-badge: 4px;
+  --radius-control: 6px;
+  --radius-sheet: 10px;
+
+  --shadow-sheet: 0 1px 2px rgba(22, 33, 61, 0.06);
+  --shadow-pop: 0 8px 24px -8px rgba(22, 33, 61, 0.18);
+
+  /* Type scale (§3). */
+  --text-display: 36px;
+  --text-display--line-height: 40px;
+  --text-display--font-weight: 600;
+  --text-h1: 24px;
+  --text-h1--line-height: 32px;
+  --text-h1--font-weight: 600;
+  --text-h2: 19px;
+  --text-h2--line-height: 28px;
+  --text-h2--font-weight: 600;
+  --text-h3: 16px;
+  --text-h3--line-height: 24px;
+  --text-h3--font-weight: 600;
+  --text-body: 15px;
+  --text-body--line-height: 24px;
+  --text-ui: 14px;
+  --text-ui--line-height: 20px;
+  --text-label: 13px;
+  --text-label--line-height: 18px;
+  --text-label--font-weight: 500;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-mono-sm: 13px;
+  --text-mono-sm--line-height: 18px;
+  --text-amount: 15px;
+  --text-amount--line-height: 20px;
+  --text-amount--font-weight: 500;
+}
+
+/* shadcn's variables mapped onto the MHF tokens. */
+:root {
+  --radius: 6px;
+  --background: #EEF1F6;
+  --foreground: #16213D;
+  --card: #FFFFFF;
+  --card-foreground: #16213D;
+  --popover: #FFFFFF;
+  --popover-foreground: #16213D;
+  --primary: #1B2A5B;
+  --primary-foreground: #FFFFFF;
+  --secondary: #E2E7F3;
+  --secondary-foreground: #1B2A5B;
+  --muted: #F2F4FA;
+  --muted-foreground: #5A6683;
+  --accent: #E2E7F3;
+  --accent-foreground: #16213D;
+  --destructive: #A4232C;
+  --border: #D7DCE7;
+  --input: #D7DCE7;
+  --ring: #2B5FA8;
+  --chart-1: #1B2A5B;
+  --chart-2: #0E7A5F;
+  --chart-3: #A86A0B;
+  --chart-4: #4A3E86;
+  --chart-5: #2B5FA8;
+  --sidebar: #1B2A5B;
+  --sidebar-foreground: rgba(255, 255, 255, 0.9);
+  --sidebar-primary: #FFFFFF;
+  --sidebar-primary-foreground: #1B2A5B;
+  --sidebar-accent: rgba(255, 255, 255, 0.1);
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: rgba(255, 255, 255, 0.12);
+  --sidebar-ring: #FFFFFF;
+  --row-h: 44px;
+}
+
+html[data-density="compact"] {
+  --row-h: 36px;
+}
+
+/* Present mode and the optional night theme (§2, Dark / Present mode). */
+.dark {
+  --background: #0F1730;
+  --foreground: #E7EBF5;
+  --card: #16213D;
+  --card-foreground: #E7EBF5;
+  --popover: #16213D;
+  --popover-foreground: #E7EBF5;
+  --primary: #E7EBF5;
+  --primary-foreground: #16213D;
+  --secondary: #2B3A63;
+  --secondary-foreground: #E7EBF5;
+  --muted: #16213D;
+  --muted-foreground: #9AA6C4;
+  --accent: #2B3A63;
+  --accent-foreground: #E7EBF5;
+  --destructive: #E0707A;
+  --border: #2B3A63;
+  --input: #2B3A63;
+  --color-sheet: #16213D;
+  --color-paper: #0F1730;
+  --color-rule: #2B3A63;
+  --color-navy-900: #E7EBF5;
+  --color-slate-body: #9AA6C4;
+  --color-approved: #3FB28D;
+  --color-pending: #E0A44A;
+  --color-rejected: #E0707A;
+  --color-redacted: #9A8BE0;
+  --color-approved-bg: rgba(63, 178, 141, 0.14);
+  --color-pending-bg: rgba(224, 164, 74, 0.14);
+  --color-rejected-bg: rgba(224, 112, 122, 0.14);
+  --color-redacted-bg: rgba(154, 139, 224, 0.16);
+  --color-info-bg: rgba(43, 95, 168, 0.2);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 10px;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    font-family: var(--font-sans);
+  }
+  body {
+    @apply bg-background text-foreground text-ui antialiased;
+  }
+  [data-sidebar="content"] {
+    scrollbar-width: none;
+  }
+  [data-sidebar="content"]::-webkit-scrollbar {
+    display: none;
+  }
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--color-navy-700);
+  }
+  /* Visible focus, never removed (§9). */
+  :focus-visible {
+    outline: 2px solid var(--color-info);
+    outline-offset: 2px;
+  }
+  .tabular,
+  time,
+  td {
+    font-variant-numeric: tabular-nums;
+  }
+  h1 {
+    @apply text-h1;
+  }
+  h2 {
+    @apply text-h2;
+  }
+  h3 {
+    @apply text-h3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  [data-print-hide] {
+    display: none !important;
+  }
+}
+
+/* Custom scrollbars everywhere: rounded thumb, no arrow buttons. Dropdown lists use a slimmer one. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-button { display: none; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-rule); border-radius: 9999px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--color-slate-body); }
+.thin-scroll::-webkit-scrollbar { width: 6px; }
+.thin-scroll::-webkit-scrollbar-thumb { border: 0; }
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: var(--color-rule) transparent; }
+}
