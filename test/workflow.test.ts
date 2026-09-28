@@ -230,8 +230,10 @@ describe("money in and running costs", () => {
   it("issues receipts in sequence and voids them on cancel", async () => {
     await as("ACCOUNTANT");
     const donor = ok(await dons.saveDonor({ name: `Test donor ${stamp}`, type: "INDIVIDUAL", isAnonymous: false }));
-    const a = ok(await dons.saveDonation({ donorId: donor.id, amountPaise: 1000000n, donationDate: toDateInput(new Date()), mode: "CASH" }));
-    const b = ok(await dons.saveDonation({ donorId: donor.id, amountPaise: 200000n, donationDate: toDateInput(new Date()), mode: "CASH" }));
+    // Two funds are active, so the fund is not implied: these are Zakat donations, and the
+    // Zakat balance is what this test goes on to assert.
+    const a = ok(await dons.saveDonation({ donorId: donor.id, amountPaise: 1000000n, donationDate: toDateInput(new Date()), mode: "CASH", fundId: zakatId }));
+    const b = ok(await dons.saveDonation({ donorId: donor.id, amountPaise: 200000n, donationDate: toDateInput(new Date()), mode: "CASH", fundId: zakatId }));
     const n = (r: string) => Number(r.split("/").pop());
     expect(n(b.receiptNo)).toBe(n(a.receiptNo) + 1);
     const before = await fundBalance(zakatId);
@@ -242,9 +244,17 @@ describe("money in and running costs", () => {
   });
 
   it("never charges running costs to Zakat", async () => {
+    const zakatBefore = await fundBalance(zakatId);
     const r = await exps.createExpense({ category: "RENT", description: "Office rent", amountPaise: 100000n, expenseDate: toDateInput(new Date()), mode: "CASH" });
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error).toMatch(/No fund is available for expenses/);
+    // Zakat has allowsExpenses false, so it is not even a candidate: the only fund that may be
+    // charged is General, and with exactly one candidate the app picks it without asking.
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const e = await prisma.expense.findUniqueOrThrow({ where: { id: r.data.id }, include: { fund: true } });
+      expect(e.fund.type).toBe("GENERAL");
+      expect(e.fund.allowsExpenses).toBe(true);
+    }
+    expect(await fundBalance(zakatId)).toBe(zakatBefore);
   });
 
   it("refuses money actions to roles without them", async () => {
