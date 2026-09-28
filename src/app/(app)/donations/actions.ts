@@ -9,6 +9,17 @@ import { formatINR } from "@/lib/money";
 import { fromDateInput, getFiscalYear } from "@/lib/fy";
 import { nextDonorCode, nextReceiptNo } from "@/lib/numbering";
 import { donationSchema, donorSchema, id, reasonSchema } from "@/lib/validators";
+import { fundBalance } from "@/lib/db/queries/funds";
+import { lockFund } from "@/lib/db/writes";
+
+/** Money already paid out of a fund cannot be taken back out of it by editing or cancelling a donation. */
+async function assertNotOverdrawn(tx: Tx, fundId: string) {
+  const balance = await fundBalance(fundId, tx);
+  if (balance < 0n) {
+    const f = await tx.fund.findFirst({ where: { id: fundId }, select: { name: true } });
+    throw new UserError(`This would leave the ${f?.name ?? ""} fund at ${formatINR(balance)}. That money has already been paid out.`);
+  }
+}
 
 export const saveDonor = action("donations.write", donorSchema, async ({ id, ...data }, { tx, audit }) => {
   if (id) {
@@ -60,7 +71,9 @@ export const saveDonation = action("donations.write", donationSchema, async (inp
     if (!before) throw new UserError("That donation no longer exists.");
     if (before.cancelledAt) throw new UserError(`Receipt ${before.receiptNo} is cancelled and cannot be edited.`);
     if (before.isReceiptIssued) throw new UserError(`Receipt ${before.receiptNo} has been issued. Cancel it and record the donation again.`);
+    await lockFund(tx, before.fundId);
     await tx.donation.update({ where: { id: input.id }, data });
+    await assertNotOverdrawn(tx, before.fundId);
     const d = diff(before as unknown as Record<string, unknown>, data);
     await audit({ action: "UPDATE", entity: "Donation", entityId: input.id, summary: `Updated donation ${before.receiptNo}`, before: d.before, after: d.after });
     revalidatePath("/donations");
@@ -78,7 +91,9 @@ export const cancelDonation = action("donations.write", reasonSchema, async ({ i
   const d = await tx.donation.findFirst({ where: { id } });
   if (!d) throw new UserError("That donation no longer exists.");
   if (d.cancelledAt) throw new UserError(`Receipt ${d.receiptNo} is already cancelled.`);
+  await lockFund(tx, d.fundId);
   await tx.donation.update({ where: { id }, data: { cancelledAt: new Date(), cancelReason: reason } });
+  await assertNotOverdrawn(tx, d.fundId);
   await audit({ action: "DELETE", entity: "Donation", entityId: id, summary: `Cancelled receipt ${d.receiptNo}`, reason });
   revalidatePath("/donations");
   return { id };

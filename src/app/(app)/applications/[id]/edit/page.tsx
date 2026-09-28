@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { EyeOff } from "lucide-react";
 import { requirePage } from "@/lib/auth/context";
+import { can } from "@/lib/auth/permissions";
 import { caseSuggestions, getApplicationForEdit, missingDocuments, priorAid } from "@/lib/db/queries/applications";
 import { masterOptions } from "@/lib/db/queries/admin";
 import { activeFunds } from "@/lib/db/queries/funds";
@@ -43,7 +44,8 @@ export default async function EditApplicationPage({ params, searchParams }: { pa
   if (!EDITABLE(a.status)) redirect(`/applications/${id}`);
   const [m, names, maxMb, missing, appPrior, patPrior, funds] = await Promise.all([
     masterOptions(),
-    caseSuggestions(),
+    // A reveal unlocks this one case, not every case's introducers and doctors.
+    ctx.meetingMode ? { introducers: [], doctors: [] } : caseSuggestions(),
     getSetting("documents.maxFileMb"),
     missingDocuments(r.attachments.map((x) => x.type)),
     priorAid(a.applicantId, a.id),
@@ -64,6 +66,7 @@ export default async function EditApplicationPage({ params, searchParams }: { pa
         }}
         maxMb={maxMb}
         isDraft={a.status === "DRAFT"}
+        canPay={can(ctx, "payments.write")}
         initialId={a.id}
         initialCaseNo={a.caseNo}
         initialStep={Math.min(4, Math.max(0, step - 1))}

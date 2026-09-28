@@ -17,6 +17,7 @@ export const authConfig = {
       if (user) {
         token.uid = user.id as string;
         token.role = (user as { role: Role }).role;
+        token.sv = (user as { sessionVersion?: number }).sessionVersion ?? 0;
         token.loginAt = Date.now();
       }
       if (typeof token.loginAt !== "number" || Date.now() - token.loginAt > ABSOLUTE_MS) return null;
@@ -25,6 +26,8 @@ export const authConfig = {
     session({ session, token }) {
       session.user.id = token.uid as string;
       session.user.role = token.role as Role;
+      // Compared with User.sessionVersion in loadContext; a mismatch ends the session.
+      (session.user as { sessionVersion?: number }).sessionVersion = typeof token.sv === "number" ? token.sv : 0;
       return session;
     },
   },

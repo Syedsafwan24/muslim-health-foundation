@@ -29,20 +29,24 @@ export default async function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Cases received" value={s.cases.cur.toLocaleString("en-IN")} delta={<Delta cur={s.cases.cur} prev={s.cases.prev} />} href="/applications" />
         <StatCard label="Amount paid" value={formatINR(s.disbursed.cur)} delta={<Delta cur={s.disbursed.cur} prev={s.disbursed.prev} money />} rule="approved" />
-        <StatCard label="Donations received" value={formatINR(s.donations.cur)} delta={<Delta cur={s.donations.cur} prev={s.donations.prev} money />} rule="zakat" />
+        {s.donations && <StatCard label="Donations received" value={formatINR(s.donations.cur)} delta={<Delta cur={s.donations.cur} prev={s.donations.prev} money />} rule="zakat" />}
         <StatCard label="People helped" value={s.helped.cur.toLocaleString("en-IN")} delta={<span>{s.helped.repeat} helped in an earlier year too</span>} rule="info" />
       </div>
 
-      <SheetPanel title="Fund balances" className="mt-6" rule="zakat">
-        <div className="space-y-4">
-          {d.funds.map((f) => <FundBar key={f.id} name={f.name} type={f.type} balancePaise={f.balancePaise} committedPct={f.committedPct} low={f.low} />)}
-        </div>
-      </SheetPanel>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-[2fr_1fr]">
-        <SheetPanel title="Donations received and amount paid, by month">
-          <FlowChart data={d.flow} />
+      {d.funds && (
+        <SheetPanel title="Fund balances" className="mt-6" rule="zakat">
+          <div className="space-y-4">
+            {d.funds.map((f) => <FundBar key={f.id} name={f.name} type={f.type} balancePaise={f.balancePaise} committedPct={f.committedPct} low={f.low} />)}
+          </div>
         </SheetPanel>
+      )}
+
+      <div className={`mt-6 grid gap-6 ${d.flow ? "xl:grid-cols-[2fr_1fr]" : ""}`}>
+        {d.flow && (
+          <SheetPanel title="Donations received and amount paid, by month">
+            <FlowChart data={d.flow} />
+          </SheetPanel>
+        )}
         <SheetPanel title="Disease mix">
           {d.diseaseMix.length ? <Donut data={d.diseaseMix} label="Donut chart of cases by disease category" /> : <p className="text-ui text-slate-body">No cases this year yet.</p>}
         </SheetPanel>
@@ -66,21 +70,23 @@ export default async function DashboardPage() {
         </SheetPanel>
       </div>
 
-      <SheetPanel title="Recent activity" className="mt-6" bodyClassName="p-0">
-        {d.recent.length === 0 ? (
-          <EmptyState icon={Activity}>No activity recorded yet.</EmptyState>
-        ) : (
-          <ul className="divide-y divide-rule">
-            {d.recent.map((r) => (
-              <li key={r.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-5 py-2.5 text-ui">
-                <time className="w-40 shrink-0 text-caption text-slate-body">{fmtDateTime(r.at)}</time>
-                <span className="text-navy-900">{r.summary ?? AUDIT_ACTION[r.action]}</span>
-                <span className="text-caption text-slate-body">by {r.actor}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </SheetPanel>
+      {d.recent && (
+        <SheetPanel title="Recent activity" className="mt-6" bodyClassName="p-0">
+          {d.recent.length === 0 ? (
+            <EmptyState icon={Activity}>No activity recorded yet.</EmptyState>
+          ) : (
+            <ul className="divide-y divide-rule">
+              {d.recent.map((r) => (
+                <li key={r.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-5 py-2.5 text-ui">
+                  <time className="w-40 shrink-0 text-caption text-slate-body">{fmtDateTime(r.at)}</time>
+                  <span className="text-navy-900">{r.summary ?? AUDIT_ACTION[r.action]}</span>
+                  <span className="text-caption text-slate-body">by {r.actor}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SheetPanel>
+      )}
     </>
   );
 }

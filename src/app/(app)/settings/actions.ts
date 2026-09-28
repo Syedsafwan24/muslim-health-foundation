@@ -53,13 +53,19 @@ export const saveUser = action("users.manage", userSchema, async ({ id, newPassw
     if (!before) throw new UserError("That account no longer exists.");
     await tx.user.update({
       where: { id },
-      data: { ...data, ...(newPassword ? { passwordHash: await bcrypt.hash(newPassword, 10), failedLoginCount: 0, lockedUntil: null } : {}) },
+      data: {
+        ...data,
+        // An admin-set password is temporary: the owner must replace it at next sign-in.
+        ...(newPassword ? { passwordHash: await bcrypt.hash(newPassword, 10), failedLoginCount: 0, lockedUntil: null, mustChangePassword: id !== ctx.userId } : {}),
+        // A reset or deactivation ends every open session of that account.
+        ...(newPassword || (before.isActive && !data.isActive) ? { sessionVersion: { increment: 1 } } : {}),
+      },
     });
     const d = diff(before as unknown as Record<string, unknown>, data);
     await audit({ action: "UPDATE", entity: "User", entityId: id, summary: `Updated account ${before.name}${newPassword ? " and reset its password" : ""}`, before: d.before, after: d.after });
   } else {
     if (!newPassword) throw new UserError("Set a starting password for the new account.");
-    const u = await tx.user.create({ data: { ...data, passwordHash: await bcrypt.hash(newPassword, 10) } });
+    const u = await tx.user.create({ data: { ...data, passwordHash: await bcrypt.hash(newPassword, 10), mustChangePassword: true } });
     await audit({ action: "CREATE", entity: "User", entityId: u.id, summary: `Created account ${u.name}`, after: { role: u.role } });
   }
   revalidatePath("/settings/users");

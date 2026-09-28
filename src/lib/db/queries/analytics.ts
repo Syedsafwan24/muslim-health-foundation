@@ -3,6 +3,7 @@ import type { HospitalType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { fyRange, monthKey, previousFiscalYear } from "@/lib/fy";
 import type { ViewContext } from "@/lib/redact";
+import { can } from "@/lib/auth/permissions";
 import { LIVE_PAYMENT } from "./shared";
 import { listFunds } from "./funds";
 import { attentionCounts } from "./applications";
@@ -18,12 +19,12 @@ export function months(from: Date, n: number): string[] {
   });
 }
 
-async function fyFigures(fy: string) {
+async function fyFigures(fy: string, withDonations: boolean) {
   const { start, end } = fyRange(fy);
   const [cases, disbursed, donations, helped] = await Promise.all([
     prisma.application.count({ where: { fiscalYear: fy, status: { not: "DRAFT" } } }),
     prisma.payment.aggregate({ where: { ...LIVE_PAYMENT, paymentDate: { gte: start, lt: end } }, _sum: { amountPaise: true } }),
-    prisma.donation.aggregate({ where: { cancelledAt: null, donationDate: { gte: start, lt: end } }, _sum: { amountPaise: true } }),
+    withDonations ? prisma.donation.aggregate({ where: { cancelledAt: null, donationDate: { gte: start, lt: end } }, _sum: { amountPaise: true } }) : null,
     prisma.application.findMany({
       where: { payments: { some: { ...LIVE_PAYMENT, paymentDate: { gte: start, lt: end } } } },
       select: { patientId: true },
@@ -33,7 +34,7 @@ async function fyFigures(fy: string) {
   return {
     cases,
     disbursed: disbursed._sum.amountPaise ?? 0n,
-    donations: donations._sum.amountPaise ?? 0n,
+    donations: donations?._sum.amountPaise ?? 0n,
     helped: helped.length,
     helpedIds: helped.map((h) => h.patientId),
   };
@@ -41,10 +42,14 @@ async function fyFigures(fy: string) {
 
 export async function getDashboard(ctx: ViewContext) {
   const { start, end } = fyRange(ctx.fy);
+  // Role-gated parts are not queried at all for roles that may not see them.
+  const seeDonations = can(ctx, "donations.read");
+  const seeFunds = can(ctx, "funds.read");
+  const seeAudit = can(ctx, "audit.read");
   const [cur, prev, funds, attention] = await Promise.all([
-    fyFigures(ctx.fy),
-    fyFigures(previousFiscalYear(ctx.fy)),
-    listFunds(ctx),
+    fyFigures(ctx.fy, seeDonations),
+    fyFigures(previousFiscalYear(ctx.fy), seeDonations),
+    seeFunds ? listFunds(ctx) : null,
     attentionCounts(),
   ]);
   const [repeat, pays, dons, byHospitalRows, diseaseMix, recent] = await Promise.all([
@@ -55,16 +60,18 @@ export async function getDashboard(ctx: ViewContext) {
       distinct: ["patientId"],
     }),
     prisma.payment.findMany({ where: { ...LIVE_PAYMENT, paymentDate: { gte: start, lt: end } }, select: { amountPaise: true, paymentDate: true } }),
-    prisma.donation.findMany({ where: { cancelledAt: null, donationDate: { gte: start, lt: end } }, select: { amountPaise: true, donationDate: true } }),
+    seeDonations ? prisma.donation.findMany({ where: { cancelledAt: null, donationDate: { gte: start, lt: end } }, select: { amountPaise: true, donationDate: true } }) : [],
     prisma.payment.groupBy({ by: ["hospitalId"], where: { ...LIVE_PAYMENT, paymentDate: { gte: start, lt: end }, hospitalId: { not: null } }, _sum: { amountPaise: true } }),
     categoryMix({ fiscalYear: ctx.fy, status: { not: "DRAFT" } }),
     // Recent activity: summaries are PII-free by construction; in Meeting Mode only own rows keep them.
-    prisma.auditLog.findMany({
-      where: { action: { notIn: ["LOGIN", "LOGOUT", "FILE_VIEW"] } },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-      include: { actor: { select: { name: true } } },
-    }),
+    seeAudit
+      ? prisma.auditLog.findMany({
+          where: { action: { notIn: ["LOGIN", "LOGOUT", "FILE_VIEW"] } },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          include: { actor: { select: { name: true } } },
+        })
+      : null,
   ]);
 
   // Months of the selected FY that have started (no zero-filled future months).
@@ -81,7 +88,6 @@ export async function getDashboard(ctx: ViewContext) {
   const flow = months(start, 12)
     .filter((m) => m <= now)
     .map((m) => ({ month: m, donations: Number(inMonth.get(m)?.donations ?? 0n) / 100, disbursed: Number(inMonth.get(m)?.disbursed ?? 0n) / 100 }));
-
   const top = byHospitalRows.sort((a, b) => ((b._sum.amountPaise ?? 0n) > (a._sum.amountPaise ?? 0n) ? 1 : -1)).slice(0, 8);
   const names = new Map((await prisma.hospital.findMany({ where: { id: { in: top.map((r) => r.hospitalId!) } }, select: { id: true, name: true } })).map((h) => [h.id, h.name]));
   const topHospitals = top.map((r) => ({ id: r.hospitalId!, name: names.get(r.hospitalId!) ?? "—", amount: Number(r._sum.amountPaise ?? 0n) / 100 }));
@@ -90,21 +96,21 @@ export async function getDashboard(ctx: ViewContext) {
     stats: {
       cases: { cur: cur.cases, prev: prev.cases },
       disbursed: { cur: cur.disbursed, prev: prev.disbursed },
-      donations: { cur: cur.donations, prev: prev.donations },
+      donations: seeDonations ? { cur: cur.donations, prev: prev.donations } : null,
       helped: { cur: cur.helped, prev: prev.helped, repeat: repeat.length },
     },
     funds,
-    flow,
+    flow: seeDonations ? flow : null,
     diseaseMix,
     topHospitals,
     attention,
-    recent: recent.map((r) => ({
+    recent: recent?.map((r) => ({
       id: r.id,
       at: r.createdAt,
       action: r.action,
       actor: r.actor?.name ?? "System",
       summary: ctx.meetingMode && r.actorId !== ctx.userId ? null : r.summary,
-    })),
+    })) ?? null,
   };
 }
 

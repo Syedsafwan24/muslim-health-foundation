@@ -6,6 +6,11 @@ import { signedGetUrl } from "@/lib/storage";
 // Issues a 5-minute signed URL after a role + Meeting Mode check, and audits the access.
 // Under Meeting Mode an identity-bearing file gets a 403 and no URL is ever written.
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  // File access writes an audit row, so refuse cross-site GETs (CSRF). Absent header = old browser / curl.
+  const site = req.headers.get("sec-fetch-site");
+  if (site && site !== "same-origin" && site !== "none") {
+    return new NextResponse("Open this from the app.", { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
   let ctx;
   try {
     ctx = await requireViewContext();

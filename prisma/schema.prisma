@@ -28,6 +28,8 @@ model User {
   forceMeetingMode Boolean @default(false) // per-user override, see docs/03
   failedLoginCount Int     @default(0)     // 5 failures → 15-minute lockout
   lockedUntil   DateTime?
+  sessionVersion     Int     @default(0)     // bumped on password reset, deactivation, sign-out: older JWTs are refused
+  mustChangePassword Boolean @default(false) // forces /account/password before any other page
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   deletedAt     DateTime?

@@ -35,7 +35,8 @@ export default async function CasePage({ params, searchParams }: { params: Promi
   const ctx = await getViewContext();
   const { id } = await params;
   const sp = await readParams(searchParams);
-  const tab = sp.oneOf("tab", TABS.map((t) => t.id)) ?? "application";
+  const tabs = TABS.filter((t) => t.id !== "payments" || can(ctx, "payments.read"));
+  const tab = sp.oneOf("tab", tabs.map((t) => t.id)) ?? "application";
   const a = await getApplication(ctx, id);
   if (!a) notFound();
 
@@ -61,7 +62,7 @@ export default async function CasePage({ params, searchParams }: { params: Promi
                 <Link href={`/applications/${a.id}/edit`}>Edit application</Link>
               </Button>
             )}
-            {a.status !== "DRAFT" && (
+            {a.status !== "DRAFT" && can(ctx, "reports.export") && (
               <Button variant="outline" asChild>
                 <a href={`/api/export/case-sheet?id=${a.id}`} target="_blank" rel="noopener"><Printer aria-hidden /> Case sheet</a>
               </Button>
@@ -79,7 +80,7 @@ export default async function CasePage({ params, searchParams }: { params: Promi
       ))}
       {a.bounced && (
         <div role="alert" className="mb-4 flex items-center gap-2 rounded-sheet border border-rejected bg-rejected-bg px-4 py-3 text-ui text-rejected">
-          <AlertTriangle aria-hidden className="size-4" /> A payment on this case bounced. See the Payments tab.
+          <AlertTriangle aria-hidden className="size-4" /> A payment on this case bounced.{can(ctx, "payments.read") && " See the Payments tab."}
         </div>
       )}
 
@@ -91,7 +92,7 @@ export default async function CasePage({ params, searchParams }: { params: Promi
       </div>
 
       <nav aria-label="Case sections" className="mt-6 flex gap-1 overflow-x-auto border-b border-rule" data-print-hide>
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <Link
             key={t.id}
             href={`/applications/${a.id}${t.id === "application" ? "" : `?tab=${t.id}`}`}
@@ -278,7 +279,7 @@ async function PaymentsTab({ a, canPay, canManage }: { a: A; canPay: boolean; ca
                     <td className="px-3"><time>{fmtDate(p.paymentDate)}</time></td>
                     <td className="px-3">{PAYMENT_MODE[p.mode]}</td>
                     <td className="px-3 font-mono text-mono-sm">{p.chequeNo ?? p.referenceNo ?? "—"}</td>
-                    <td className="px-3">{p.hospitalName ?? p.payeeName ?? (a.masked ? <span className="text-redacted">Hidden</span> : "—")}</td>
+                    <td className="px-3">{p.hospitalName ?? p.payeeName ?? (p.payeeName === undefined ? <span className="text-redacted">Hidden</span> : "—")}</td>
                     <td className="px-3">{TOWARDS[p.towards]}</td>
                     <td className="px-3 text-right font-mono"><MoneyText paise={p.amountPaise} /></td>
                     <td className="px-3">

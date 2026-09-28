@@ -97,7 +97,13 @@ describe("an approved case from entry to paid", () => {
     const d = ok(await apps.saveApplication(paper(`Paid At Entry ${stamp}`, 250000n)));
     await attachRequired(d.id);
     const bankId = (await prisma.bank.findFirstOrThrow({ where: { isOwnAccount: true } })).id;
-    ok(await apps.submitApplication({ id: d.id, payment: { mode: "CHEQUE", chequeNo: `E${stamp}`.slice(0, 12), bankId, paymentDate: toDateInput(new Date()), towards: "HOSPITAL_BILL", hospitalId, remark: "" } }));
+    const cheque = { mode: "CHEQUE" as const, chequeNo: `E${stamp}`.slice(0, 12), bankId, paymentDate: toDateInput(new Date()), towards: "HOSPITAL_BILL" as const, hospitalId, remark: "", fundId: zakatId };
+    // An operator enters the case but may not issue the cheque.
+    const refused = await apps.submitApplication({ id: d.id, payment: cheque });
+    expect(refused.ok).toBe(false);
+    expect((await prisma.application.findUniqueOrThrow({ where: { id: d.id } })).status).toBe("DRAFT");
+    await as("GENERAL_SECRETARY");
+    ok(await apps.submitApplication({ id: d.id, payment: cheque }));
     const a = await prisma.application.findUniqueOrThrow({ where: { id: d.id }, include: { payments: true } });
     expect(a.status).toBe("PAID");
     expect(a.payments).toHaveLength(1);
@@ -106,7 +112,7 @@ describe("an approved case from entry to paid", () => {
 
   it("caps payments at the approved amount unless overridden", async () => {
     await as("ACCOUNTANT");
-    const base = { applicationId: appId, mode: "CHEQUE" as const, chequeNo: `T${stamp}`.slice(0, 12), bankId: (await prisma.bank.findFirstOrThrow({ where: { isOwnAccount: true } })).id, paymentDate: toDateInput(new Date()), towards: "HOSPITAL_BILL" as const, hospitalId };
+    const base = { applicationId: appId, mode: "CHEQUE" as const, chequeNo: `T${stamp}`.slice(0, 12), bankId: (await prisma.bank.findFirstOrThrow({ where: { isOwnAccount: true } })).id, paymentDate: toDateInput(new Date()), towards: "HOSPITAL_BILL" as const, hospitalId, fundId: zakatId };
     const over = await pays.recordPayment({ ...base, amountPaise: 4000001n });
     expect(over.ok).toBe(false);
     const balanceBefore = await fundBalance(zakatId);
@@ -138,11 +144,41 @@ describe("an approved case from entry to paid", () => {
     await prisma.application.update({ where: { id: appId }, data: { approvedAmountPaise: balance + 100n } });
     const r = await pays.recordPayment({
       applicationId: appId, amountPaise: balance + 100n, mode: "NEFT", chequeNo: `UTR${stamp}`, paymentDate: toDateInput(new Date()),
-      towards: "HOSPITAL_BILL", hospitalId,
+      towards: "HOSPITAL_BILL", hospitalId, fundId: zakatId,
     });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toMatch(/fund has .* left/);
     await prisma.application.update({ where: { id: appId }, data: { approvedAmountPaise: 4000000n } });
+  });
+
+  it("lets only one of two simultaneous full payments through", async () => {
+    await as("ACCOUNTANT");
+    const bankId = (await prisma.bank.findFirstOrThrow({ where: { isOwnAccount: true } })).id;
+    const pay = (n: string) => pays.recordPayment({
+      applicationId: appId, amountPaise: 4000000n, mode: "CHEQUE", chequeNo: `R${n}${stamp}`.slice(0, 12), bankId,
+      paymentDate: toDateInput(new Date()), towards: "HOSPITAL_BILL", hospitalId, fundId: zakatId,
+    });
+    const results = await Promise.all([pay("1"), pay("2")]);
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    const paid = await prisma.payment.aggregate({ where: { applicationId: appId, status: { notIn: ["CANCELLED", "BOUNCED"] } }, _sum: { amountPaise: true } });
+    expect(paid._sum.amountPaise).toBe(4000000n);
+  });
+
+  it("lets only the general secretary change the approved amount of a recorded case", async () => {
+    await as("OPERATOR");
+    const form = paper(`Approval Rule ${stamp}`, 300000n);
+    const d = ok(await apps.saveApplication(form));
+    await attachRequired(d.id);
+    ok(await apps.submitApplication({ id: d.id, payment: null }));
+    const a = await prisma.application.findUniqueOrThrow({ where: { id: d.id } });
+    const raise = { ...form, id: d.id, applicant: { ...form.applicant, personId: a.applicantId }, case: { ...form.case, approvedAmountPaise: 400000n } };
+    const r = await apps.saveApplication(raise);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/Only the general secretary can change the approved amount/);
+    expect((await prisma.application.findUniqueOrThrow({ where: { id: d.id } })).approvedAmountPaise).toBe(300000n);
+    await as("GENERAL_SECRETARY");
+    ok(await apps.saveApplication(raise));
+    expect((await prisma.application.findUniqueOrThrow({ where: { id: d.id } })).approvedAmountPaise).toBe(400000n);
   });
 });
 

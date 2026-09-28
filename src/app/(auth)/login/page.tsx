@@ -5,10 +5,11 @@ import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Sign in" };
 
-export default async function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ changed?: string }> }) {
   // Checked against the database, not just the token, so a deactivated account stays here.
   const ctx = await requireViewContext().catch(() => null);
   if (ctx) redirect("/dashboard");
+  const changed = (await searchParams).changed === "1";
   return (
     <main className="grid min-h-dvh place-items-center bg-paper px-4">
       <div className="w-full max-w-sm">
@@ -20,6 +21,7 @@ export default async function LoginPage() {
           </div>
         </div>
         <section className="rounded-sheet border border-rule border-t-2 border-t-navy-700 bg-sheet p-6 shadow-sheet">
+          {changed && <p role="status" className="mb-4 rounded-control bg-approved-bg px-3 py-2 text-ui text-approved">Password changed. Sign in with your new password.</p>}
           <LoginForm />
         </section>
         <p className="mt-4 text-caption text-slate-body">Jamat Complex, 1st Floor, N.H.66, Near Noor Masjid, Bhatkal – 581 320</p>

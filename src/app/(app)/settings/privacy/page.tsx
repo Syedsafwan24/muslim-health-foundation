@@ -29,7 +29,7 @@ const Locked = () => (
 
 export default async function PrivacySettings() {
   const ctx = await requirePage("settings.read");
-  const [p, users] = await Promise.all([privacySettings(), listUsers(ctx)]);
+  const [p, users] = await Promise.all([privacySettings(ctx), listUsers(ctx)]);
   const canToggle = can(ctx, "meetingMode.toggle");
   const active = users.filter((u) => u.isActive);
   return (

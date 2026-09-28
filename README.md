@@ -16,7 +16,9 @@ pnpm db:seed                  # masters, one user per role, 54 demo cases
 pnpm dev                      # http://localhost:3100
 ```
 
-Demo accounts (password `Mhf@2026!` for all):
+Demo accounts for **local development only** (password `Mhf@2026!` for all — it is public, so it
+is never used in production: there `pnpm db:seed` requires `SEED_ADMIN_PASSWORD` and every seeded
+account must choose its own password at first sign-in; see `docs/RUNBOOK.md` §6):
 
 | Email | Role | Note |
 |---|---|---|

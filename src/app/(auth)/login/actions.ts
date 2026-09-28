@@ -11,9 +11,11 @@ export async function loginAction(_prev: unknown, form: FormData): Promise<{ err
     if (e instanceof AuthError) {
       const code = (e as AuthError & { code?: string }).code;
       return {
-        error: code === "locked"
-          ? "This account is locked for 15 minutes after too many failed attempts. Try again later or ask the administrator."
-          : "That email and password do not match. Check them and try again.",
+        // One message for unknown email, wrong password and locked account: it must not tell an
+        // outsider which emails exist, nor confirm a correct guess while the account is locked.
+        error: code === "throttled"
+          ? "Too many failed sign-ins from this network. Wait 15 minutes and try again."
+          : "That email and password do not match, or the account is locked for 15 minutes after 5 wrong passwords. Check them and try again, or ask the administrator.",
       };
     }
     throw e; // the redirect after a successful sign-in

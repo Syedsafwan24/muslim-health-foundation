@@ -71,6 +71,17 @@ export type PaymentEntry = {
 };
 
 /**
+ * Lock rows for the rest of the transaction, so two concurrent money writes cannot both pass a
+ * balance check. Always lock in the same order (Application, then Fund) to avoid deadlocks.
+ */
+export async function lockApplication(tx: Tx, id: string) {
+  await tx.$queryRaw`SELECT id FROM "Application" WHERE id = ${id} FOR UPDATE`;
+}
+export async function lockFund(tx: Tx, id: string) {
+  await tx.$queryRaw`SELECT id FROM "Fund" WHERE id = ${id} FOR UPDATE`;
+}
+
+/**
  * Record one payment (Block D) against an approved case: fund chosen automatically while only
  * one is active, capped at the approved amount unless overridden, never overdrawing the fund.
  */
@@ -81,6 +92,7 @@ export async function createPayment(
   p: PaymentEntry & { amountPaise: bigint; fundId?: string | null; overrideNote?: string | null },
   audit: AuditFn,
 ) {
+  await lockApplication(tx, applicationId);
   const app = await tx.application.findFirst({ where: { id: applicationId }, include: { applicant: { select: { fullName: true } } } });
   if (!app) throw new UserError("That case no longer exists.");
   if (!PAYABLE.includes(app.status)) throw new UserError(`Case ${app.caseNo} is not open for payment.`);
@@ -88,6 +100,7 @@ export async function createPayment(
   const funds = await tx.fund.findMany({ where: { isActive: true } });
   const fund = p.fundId ? funds.find((f) => f.id === p.fundId) : funds.length === 1 ? funds[0] : null;
   if (!fund) throw new UserError(funds.length ? "Choose the fund this payment is drawn from." : "There is no active fund to pay from. Set one up in Settings.");
+  await lockFund(tx, fund.id);
 
   const paid = (await tx.payment.aggregate({ where: { ...LIVE_PAYMENT, applicationId }, _sum: { amountPaise: true } }))._sum.amountPaise ?? 0n;
   const remaining = (app.approvedAmountPaise ?? 0n) - paid;

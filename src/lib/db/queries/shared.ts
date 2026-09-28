@@ -34,7 +34,7 @@ export async function paidByApplication(ids: string[]): Promise<Map<string, bigi
 
 /**
  * Is identity hidden for this particular case? Meeting Mode, unless the super admin holds an
- * unexpired reveal grant for it. Present mode can never be unredacted.
+ * unexpired reveal grant for it.
  */
 export async function isMaskedFor(ctx: ViewContext, applicationId: string): Promise<{ masked: boolean; grantExpiresAt: Date | null }> {
   if (!ctx.meetingMode) return { masked: false, grantExpiresAt: null };

@@ -92,7 +92,17 @@ async function main() {
     console.log("Database already seeded. Run `pnpm db:reset` to start over.");
     return;
   }
-  const passwordHash = await bcrypt.hash("Mhf@2026!", 10);
+  // The demo password is public (README). Production must supply its own, and every seeded
+  // account is forced to choose a personal password at first sign-in.
+  // Setting SEED_ADMIN_PASSWORD alone also switches this on, in case NODE_ENV is unset on the server.
+  const seedPassword = process.env.SEED_ADMIN_PASSWORD;
+  if (process.env.NODE_ENV === "production" && !seedPassword) {
+    throw new Error("Refusing to seed demo users in production without SEED_ADMIN_PASSWORD.");
+  }
+  if (seedPassword !== undefined && seedPassword.length < 10) throw new Error("SEED_ADMIN_PASSWORD must be at least 10 characters.");
+  const production = seedPassword !== undefined;
+  const passwordHash = await bcrypt.hash(seedPassword ?? "Mhf@2026!", 10);
+  const mustChangePassword = production;
 
   // ── users: one per role. Committee and viewer are pinned to Meeting Mode (docs/03 §4).
   const users = await Promise.all(
@@ -104,7 +114,7 @@ async function main() {
       ["Riyaz Kazia", "accounts@mhf.local", "ACCOUNTANT", false],
       ["Audit Visitor", "viewer@mhf.local", "VIEWER", true],
     ] as const).map(([name, email, role, forceMeetingMode]) =>
-      prisma.user.create({ data: { name, email, role, forceMeetingMode, passwordHash } }),
+      prisma.user.create({ data: { name, email, role, forceMeetingMode, passwordHash, mustChangePassword } }),
     ),
   );
   const [admin, gensec, , operator, accountant] = users;
@@ -344,7 +354,7 @@ async function main() {
   await prisma.counter.createMany({ data: counters });
   await prisma.setting.create({ data: { key: "meetingMode.global", value: false, updatedById: admin.id } });
 
-  console.log(`Seeded ${plan.length} cases, ${people.length} people, ${donationDates.length} donations. Password for every demo user: Mhf@2026!`);
+  console.log(`Seeded ${plan.length} cases, ${people.length} people, ${donationDates.length} donations. Password for every demo user: ${production ? "SEED_ADMIN_PASSWORD (change required at first sign-in)" : "Mhf@2026!"}`);
 }
 
 main()

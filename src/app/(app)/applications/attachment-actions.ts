@@ -11,12 +11,16 @@ import { audit } from "@/lib/audit";
 import { assertPermission, ForbiddenError } from "@/lib/auth/permissions";
 import { requireViewContext, UnauthenticatedError } from "@/lib/auth/context";
 import { sha256 } from "@/lib/crypto";
-import { putObject } from "@/lib/storage";
+import { deleteObjects, putObject } from "@/lib/storage";
 import { getSettings } from "@/lib/settings";
-import { ATTACHMENT_TYPE } from "@/lib/labels";
+import { ATTACHMENT_TYPE, CASE_DOCUMENTS } from "@/lib/labels";
 import { id } from "@/lib/validators";
 
 const MAX_EDGE = 2500;
+/** Decompression-bomb guard: a tiny file can declare a huge canvas. 50 MP is well above any phone camera. */
+const MAX_INPUT_PIXELS = 50_000_000;
+/** Every case document (and a receipt standing in for the bill) carries the patient's name. */
+const IDENTITY_TYPES = new Set<AttachmentType>([...CASE_DOCUMENTS.map((d) => d.type), "RECEIPT"]);
 
 /** Identify the file by its bytes, not by the name or the browser's claimed type. */
 function sniff(buf: Buffer): "pdf" | "jpeg" | "png" | "webp" | "heic" | null {
@@ -35,7 +39,7 @@ const pdfPages = (buf: Buffer) => Math.max(1, (buf.toString("latin1").match(/\/T
  * EXIF GPS (sharp strips metadata unless asked to keep it). HEIC is converted to JPEG.
  */
 async function processImage(buf: Buffer, kind: "jpeg" | "png" | "webp" | "heic") {
-  const img = sharp(buf, { failOn: "error" }).rotate().resize({ width: MAX_EDGE, height: MAX_EDGE, fit: "inside", withoutEnlargement: true });
+  const img = sharp(buf, { failOn: "error", limitInputPixels: MAX_INPUT_PIXELS }).rotate().resize({ width: MAX_EDGE, height: MAX_EDGE, fit: "inside", withoutEnlargement: true });
   if (kind === "png") return { body: await img.png().toBuffer(), mime: "image/png", ext: "png" };
   if (kind === "webp") return { body: await img.webp({ quality: 85 }).toBuffer(), mime: "image/webp", ext: "webp" };
   return { body: await img.jpeg({ quality: 85 }).toBuffer(), mime: "image/jpeg", ext: "jpg" };
@@ -50,7 +54,8 @@ export async function uploadAttachments(form: FormData): Promise<ActionResult<{ 
     const applicationId = String(form.get("applicationId") ?? "");
     const type = String(form.get("type") ?? "") as AttachmentType;
     if (!(type in ATTACHMENT_TYPE)) throw new UserError("Choose what kind of document this is.");
-    const containsIdentity = form.get("containsIdentity") !== "false";
+    // The form's flag can only add protection, never remove it from an identity-bearing type.
+    const containsIdentity = IDENTITY_TYPES.has(type) || form.get("containsIdentity") !== "false";
     const files = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
     if (!files.length) throw new UserError("Choose at least one file.");
 
@@ -73,31 +78,38 @@ export async function uploadAttachments(form: FormData): Promise<ActionResult<{ 
       else {
         try {
           out = { ...(await processImage(raw, kind)), pages: 1 };
-        } catch {
+        } catch (e) {
+          if (e instanceof Error && /pixel limit/i.test(e.message)) throw new UserError("This photo is too large. Take it again at a normal resolution.");
           throw new UserError(kind === "heic" ? "This HEIC photo could not be converted. Save it as JPG on the phone and upload again." : "One of the images could not be read. Check the file and try again.");
         }
       }
       prepared.push({ ...out, originalName: f.name.slice(0, 200) });
     }
 
-    // Upload first, then record. An object with no row is unreachable (keys are random).
+    // Upload first, then record. If anything fails, remove what was uploaded so no orphans remain.
     const rows: ((typeof prepared)[number] & { key: string })[] = [];
-    for (const p of prepared) {
-      const key = `applications/${app.id}/${randomUUID()}.${p.ext}`;
-      await putObject(key, p.body, p.mime);
-      rows.push({ ...p, key });
-    }
-    await prisma.$transaction(async (tx) => {
-      for (const r of rows) {
-        const a = await tx.attachment.create({
-          data: {
-            type, storageKey: r.key, originalName: r.originalName, mimeType: r.mime, sizeBytes: r.body.length,
-            checksumSha256: sha256(r.body), pageCount: r.pages, containsIdentity, applicationId: app.id, uploadedById: ctx.userId,
-          },
-        });
-        await audit(tx, { actorId: ctx.userId, action: "CREATE", entity: "Attachment", entityId: a.id, summary: `Uploaded ${ATTACHMENT_TYPE[type].toLowerCase()} to case ${app.caseNo}` });
+    try {
+      for (const p of prepared) {
+        const key = `applications/${app.id}/${randomUUID()}.${p.ext}`;
+        rows.push({ ...p, key });
+        await putObject(key, p.body, p.mime);
       }
-    });
+      await prisma.$transaction(async (tx) => {
+        for (const r of rows) {
+          const a = await tx.attachment.create({
+            data: {
+              type, storageKey: r.key, originalName: r.originalName, mimeType: r.mime, sizeBytes: r.body.length,
+              checksumSha256: sha256(r.body), pageCount: r.pages, containsIdentity, applicationId: app.id, uploadedById: ctx.userId,
+            },
+          });
+          await audit(tx, { actorId: ctx.userId, action: "CREATE", entity: "Attachment", entityId: a.id, summary: `Uploaded ${ATTACHMENT_TYPE[type].toLowerCase()} to case ${app.caseNo}` });
+        }
+      });
+    } catch (e) {
+      // Best effort: a cleanup failure must not hide the original error.
+      await deleteObjects(rows.map((r) => r.key)).catch(() => console.error("[upload] orphan cleanup failed"));
+      throw e;
+    }
     revalidatePath(`/applications/${app.id}`);
     return { ok: true, data: { count: rows.length } };
   } catch (e) {
@@ -113,6 +125,10 @@ export const deleteAttachment = action("attachments.write", z.object({ id }), as
   const a = await tx.attachment.findFirst({ where: { id }, include: { application: { select: { id: true, caseNo: true, status: true } } } });
   if (!a) throw new UserError("That document has already been removed.");
   if (a.application && ["PAID", "CLOSED"].includes(a.application.status)) throw new UserError("Documents on a paid or closed case are kept as the record.");
+  if (a.application && a.application.status !== "DRAFT") {
+    const others = await tx.attachment.count({ where: { applicationId: a.application.id, type: a.type, id: { not: id } } });
+    if (!others) throw new UserError(`Case ${a.application.caseNo} has been recorded, so its only ${ATTACHMENT_TYPE[a.type].toLowerCase()} cannot be removed. Upload the correct one first, then remove this.`);
+  }
   await tx.attachment.update({ where: { id }, data: { deletedAt: new Date() } });
   await audit({ action: "DELETE", entity: "Attachment", entityId: id, summary: `Removed ${ATTACHMENT_TYPE[a.type].toLowerCase()} from case ${a.application?.caseNo ?? ""}` });
   if (a.applicationId) revalidatePath(`/applications/${a.applicationId}`);

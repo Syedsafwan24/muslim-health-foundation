@@ -1,14 +1,20 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar, type NavGroup, type NavItem } from "@/components/app/app-sidebar";
 import { MeetingModeBanner, Topbar } from "@/components/app/topbar";
-import { getViewContext } from "@/lib/auth/context";
+import { getSignedIn } from "@/lib/auth/context";
 import { can, ROLE_LABEL } from "@/lib/auth/permissions";
 import { recentFiscalYears } from "@/lib/fy";
 import { shellCounts } from "@/lib/db/queries/admin";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const ctx = await getViewContext();
+  const s = await getSignedIn();
+  if (!s) redirect("/login");
+  // Forced password change: no navigation, no counts. /account/password renders here; every other
+  // page redirects there itself through getViewContext/requirePage, and actions refuse to run.
+  if (s.mustChangePassword) return <main id="main" className="min-h-dvh bg-paper px-4 py-10">{children}</main>;
+  const ctx = s.ctx;
   const counts = await shellCounts(ctx);
   const sidebarOpen = (await cookies()).get("sidebar_state")?.value !== "false";
 
@@ -39,7 +45,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ].filter(Boolean) as NavItem[],
     },
   ].filter((g) => g.items.length);
-  const footer: NavItem[] = can(ctx, "settings.read") ? [{ href: "/settings", label: "Settings", icon: "settings" }] : [{ href: "/settings/appearance", label: "Appearance", icon: "settings" }];
+  const footer: NavItem[] = [
+    can(ctx, "settings.read") ? { href: "/settings", label: "Settings", icon: "settings" } : { href: "/settings/appearance", label: "Appearance", icon: "settings" },
+    { href: "/account/password", label: "Change password", icon: "password" },
+  ];
 
   const bannerReason = ctx.meetingMode ? (ctx.globalMeetingMode ? "global" : "account") : null;
 

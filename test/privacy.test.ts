@@ -29,19 +29,55 @@ const { redactPerson, scrubNames } = await import("@/lib/redact");
 const { getViewContext, resolveMeetingMode } = await import("@/lib/auth/context");
 const { listApplications, getApplication, getApplicationHistory } = await import("@/lib/db/queries/applications");
 const { listPeople, getPerson, searchPeople } = await import("@/lib/db/queries/people");
-const { globalSearch } = await import("@/lib/db/queries/admin");
+const { globalSearch, listAudit, privacySettings } = await import("@/lib/db/queries/admin");
 const { caseBreakdown } = await import("@/lib/db/queries/breakdown");
-const { listPayments } = await import("@/lib/db/queries/payments");
+const { listPayments, getPayment } = await import("@/lib/db/queries/payments");
+const { getDonation, getDonor, listDonors } = await import("@/lib/db/queries/donations");
+const { getDashboard } = await import("@/lib/db/queries/analytics");
+const { runReport } = await import("@/lib/db/queries/reports");
+const { LIST_EXPORTS } = await import("@/lib/export/lists");
 const { authorizeFileAccess } = await import("@/lib/db/queries/shared");
 const { revealIdentity } = await import("@/app/(app)/applications/actions");
 const { setMeetingMode } = await import("@/app/(app)/settings/actions");
 
 /** Identity fields that must never appear in a redacted payload. */
-const FORBIDDEN_KEYS = ["fullName", "fatherName", "husbandName", "mobile", "addressLine", "religion", "idNumberLast4"];
+const FORBIDDEN_KEYS = [
+  "fullName", "fatherName", "husbandName", "mobile", "addressLine", "religion", "idNumberLast4",
+  "payeeName", "introducedByName", "introducedByPhone", "attendingDoctor", "eligibilityNote", "watchNote", "altMobile", "pincode", "dateOfBirth",
+];
+/** Hospitals have a city too, so these are only checked on person objects. */
+const PERSON_ONLY_KEYS = ["city", "areaName", "areaId"];
 const json = (v: unknown) => JSON.stringify(v, (_k, x) => (typeof x === "bigint" ? x.toString() : x));
 
+// Markers written into the test DB (restored afterwards) so a leak is a plain string match.
+const PAYEE = "Payee Marker Zqx";
+const PURPOSE = "Purpose Marker Zqx";
+const REVEAL_REASON = "verifying a duplicate claim";
+
+type Who = { id: string; fullName: string; fatherName: string | null; mobile: string | null };
 let originalProblem: string | null = null;
-let ids: { admin: string; gensec: string; app: string; appWithName: string; patient: { id: string; fullName: string; fatherName: string | null; mobile: string | null }; hospital: string; disease: string; committee: string; govtId: string };
+let ids: {
+  admin: string; gensec: string; app: string; appWithName: string; patient: Who; applicant: Who; hospital: string; disease: string; committee: string; govtId: string;
+  payment: { id: string; payeeName: string | null; remark: string | null; bouncedReason: string | null };
+  donation: { id: string; earmarkApplicationId: string | null; purposeNote: string | null; donorName: string };
+  anonDonor: { id: string; name: string; city: string };
+};
+
+/** Every identity leak we know of, checked on the serialised payload. */
+function assertClean(p: unknown) {
+  const s = json(p);
+  // A key may survive as an explicit null (e.g. a donor's addressLine, an export column); a value may not.
+  for (const k of FORBIDDEN_KEYS) expect(s).not.toMatch(new RegExp(`"${k}":(?!null[,}])`));
+  for (const who of [ids.patient, ids.applicant]) {
+    expect(s).not.toContain(who.fullName);
+    if (who.mobile) expect(s).not.toContain(who.mobile);
+    if (who.fatherName) expect(s).not.toContain(who.fatherName);
+  }
+  for (const marker of [PAYEE, PURPOSE, REVEAL_REASON]) expect(s).not.toContain(marker);
+}
+const assertPersonClean = (p: object) => { for (const k of PERSON_ONLY_KEYS) expect(p).not.toHaveProperty(k); };
+const ctxFor = (role: Role, userId: string, meetingMode = false) => ({ userId, name: "Test", role, meetingMode, globalMeetingMode: meetingMode, fy: "2026-27" });
+const ALL_TIME = { from: new Date("2000-01-01"), to: new Date("2100-01-01"), label: "All" };
 
 async function setGlobal(on: boolean) {
   await prisma.setting.upsert({ where: { key: "meetingMode.global" }, create: { key: "meetingMode.global", value: on }, update: { value: on } });
@@ -55,8 +91,15 @@ beforeAll(async () => {
   const disease = await prisma.disease.findFirstOrThrow();
   const app = await prisma.application.findFirstOrThrow({
     where: { status: { in: ["APPROVED", "PAYMENT_PENDING"] }, attachments: { some: { type: "GOVT_ID" } } },
-    include: { patient: true, attachments: true },
+    include: { patient: true, applicant: true, attachments: true },
+    orderBy: [{ patientIsApplicant: "asc" }, { caseNo: "asc" }], // prefer a case with a separate applicant
   });
+  // A payment that names its payee, and a donation earmarked to the case (restored afterwards).
+  const pay = await prisma.payment.findFirstOrThrow({ where: { deletedAt: null }, orderBy: { voucherNo: "asc" } });
+  await prisma.payment.update({ where: { id: pay.id }, data: { payeeName: PAYEE, remark: PAYEE, bouncedReason: PAYEE } });
+  const don = await prisma.donation.findFirstOrThrow({ where: { cancelledAt: null, donor: { isAnonymous: false } }, include: { donor: true }, orderBy: { receiptNo: "asc" } });
+  await prisma.donation.update({ where: { id: don.id }, data: { earmarkApplicationId: app.id, purposeNote: PURPOSE } });
+  const anon = await prisma.donor.findFirstOrThrow({ where: { isAnonymous: true, city: { not: null } }, orderBy: { donorCode: "asc" } });
   // A case whose free text names the patient, for the scrubNames test (restored afterwards).
   originalProblem = app.majorProblem;
   const named = await prisma.application.update({
@@ -66,8 +109,12 @@ beforeAll(async () => {
   ids = {
     admin: admin.id, gensec: gensec.id, app: app.id, appWithName: named.id,
     patient: { id: app.patient.id, fullName: app.patient.fullName, fatherName: app.patient.fatherName, mobile: app.patient.mobile },
+    applicant: { id: app.applicant.id, fullName: app.applicant.fullName, fatherName: app.applicant.fatherName, mobile: app.applicant.mobile },
     hospital: app.hospitalId!, disease: disease.id, committee: committee.id,
     govtId: app.attachments.find((a) => a.type === "GOVT_ID")!.id,
+    payment: { id: pay.id, payeeName: pay.payeeName, remark: pay.remark, bouncedReason: pay.bouncedReason },
+    donation: { id: don.id, earmarkApplicationId: don.earmarkApplicationId, purposeNote: don.purposeNote, donorName: don.donor.name },
+    anonDonor: { id: anon.id, name: anon.name, city: anon.city! },
   };
 });
 
@@ -80,6 +127,9 @@ beforeEach(async () => {
 afterAll(async () => {
   await setGlobal(false);
   await prisma.application.update({ where: { id: ids.appWithName }, data: { majorProblem: originalProblem } });
+  const { id: payId, ...pay } = ids.payment;
+  await prisma.payment.update({ where: { id: payId }, data: pay });
+  await prisma.donation.update({ where: { id: ids.donation.id }, data: { earmarkApplicationId: ids.donation.earmarkApplicationId, purposeNote: ids.donation.purposeNote } });
   await prisma.revealGrant.deleteMany({ where: { applicationId: ids.app } });
   await prisma.$disconnect();
 });
@@ -120,15 +170,99 @@ describe("2. every list and detail read in meeting mode", () => {
       globalSearch(ctx, ids.patient.fullName),
       caseBreakdown(ctx, { hospitalId: ids.hospital }),
       caseBreakdown(ctx, { diseaseId: ids.disease }),
-      listPayments(ctx, {}),
+      listPayments(ctx, { all: true }),
+      getPayment(ctx, ids.payment.id),
+      getDonation(ctx, ids.donation.id),
+      getDashboard(ctx),
+      listAudit(ctx, {}),
+      privacySettings(ctx),
+      runReport(ctx, "beneficiaries", ALL_TIME),
+      runReport(ctx, "disbursements", ALL_TIME),
+      runReport(ctx, "areas", ALL_TIME),
     ]);
-    for (const p of payloads) {
-      const s = json(p);
-      for (const k of FORBIDDEN_KEYS) expect(s).not.toContain(`"${k}"`);
-      expect(s).not.toContain(ids.patient.fullName);
-      if (ids.patient.mobile) expect(s).not.toContain(ids.patient.mobile);
-      if (ids.patient.fatherName) expect(s).not.toContain(ids.patient.fatherName);
+    for (const p of payloads) assertClean(p);
+    const a = payloads[1] as Awaited<ReturnType<typeof getApplication>>;
+    assertPersonClean(a!.patient);
+    assertPersonClean(a!.applicant);
+  });
+
+  it("covers every list export", async () => {
+    await setGlobal(true);
+    const ctx = await getViewContext();
+    for (const [name, load] of Object.entries(LIST_EXPORTS)) {
+      const sp = new URLSearchParams(name === "hospital" ? { id: ids.hospital } : name === "disease" ? { id: ids.disease } : {});
+      const out = await (await load()).run(ctx, sp);
+      expect(out, name).not.toBeNull();
+      assertClean(out);
     }
+  });
+
+  it("does not tie a donor to an earmarked case", async () => {
+    await setGlobal(true);
+    const ctx = await getViewContext();
+    const d = await getDonation(ctx, ids.donation.id);
+    expect(d!.donor.name).toBe("Donor");
+    expect(d!.purposeNote).toBeNull();
+    expect(json(d)).not.toContain(ids.donation.donorName);
+    const a = await getApplication(ctx, ids.app);
+    expect(a!.earmarks.map((e) => e.donorName)).toContain("Donor");
+    expect(json(a)).not.toContain(ids.donation.donorName);
+  });
+
+  it("hides the area report and does not sort by exact age", async () => {
+    await setGlobal(true);
+    const ctx = await getViewContext();
+    const areas = await runReport(ctx, "areas", ALL_TIME);
+    expect(areas.tables[0].rows).toEqual([]);
+    expect(areas.tables[0].note).toMatch(/hidden/i);
+    const annual = await runReport(ctx, "annual", ALL_TIME);
+    expect(annual.tables.find((t) => t.title.startsWith("Area-wise"))!.rows).toEqual([]);
+    const { rows } = await listApplications(ctx, { sort: "age", all: true });
+    const codes = rows.map((r) => r.patient.personCode);
+    expect(codes).toEqual([...codes].sort());
+  });
+});
+
+describe("10. role-based masking", () => {
+  it("gives committee members and viewers payment amounts only", async () => {
+    for (const role of ["COMMITTEE_MEMBER", "VIEWER"] as const) {
+      const ctx = ctxFor(role, ids.committee);
+      for (const p of [await getPayment(ctx, ids.payment.id), await listPayments(ctx, { all: true })]) {
+        const s = json(p);
+        expect(s).not.toContain('"payeeName"');
+        expect(s).not.toContain(PAYEE);
+      }
+    }
+    // The accountant still sees them.
+    expect((await getPayment(ctxFor("ACCOUNTANT", ids.admin), ids.payment.id))!.payeeName).toBe(PAYEE);
+  });
+
+  it("keeps payments and donor names off the case for roles without those capabilities", async () => {
+    const a = await getApplication(ctxFor("OPERATOR", ids.admin), ids.app); // no payments.read, no donations.read
+    expect(a!.payments).toEqual([]);
+    expect(a!.earmarks.map((e) => e.donorName)).not.toContain(ids.donation.donorName);
+  });
+
+  it("does not query audit, funds or donations for a committee dashboard", async () => {
+    const d = await getDashboard(ctxFor("COMMITTEE_MEMBER", ids.committee));
+    expect(d.recent).toBeNull();
+    expect(d.funds).toBeNull();
+    expect(d.stats.donations).toBeNull();
+    expect(d.flow).toBeNull();
+  });
+
+  it("hides the city and purpose of anonymous donors", async () => {
+    const ctx = ctxFor("GENERAL_SECRETARY", ids.gensec);
+    const list = await listDonors(ctx, { all: true });
+    const row = list.rows.find((r) => r.id === ids.anonDonor.id)!;
+    expect(row.name).toBe("Anonymous donor");
+    expect(row.city).toBeNull();
+    const d = await getDonor(ctx, ids.anonDonor.id);
+    expect(d!.donor.city).toBeNull();
+    expect(d!.donor.country).toBeNull();
+    expect(d!.donations.every((x) => x.purposeNote === null)).toBe(true);
+    const donors = await (await LIST_EXPORTS.donors()).run(ctx, new URLSearchParams());
+    expect(json(donors)).not.toContain(ids.anonDonor.name);
   });
 });
 

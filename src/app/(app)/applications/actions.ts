@@ -5,7 +5,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { action, UserError } from "@/lib/action";
 import { includeDeleted } from "@/lib/db";
-import { assertPermission } from "@/lib/auth/permissions";
+import { assertPermission, can } from "@/lib/auth/permissions";
 import { requireViewContext } from "@/lib/auth/context";
 import { verifyPassword } from "@/lib/auth";
 import { diff } from "@/lib/audit";
@@ -13,7 +13,7 @@ import { fromDateInput, getFiscalYear } from "@/lib/fy";
 import { nextCaseNo } from "@/lib/numbering";
 import { getSetting } from "@/lib/settings";
 import { mentionsNames } from "@/lib/redact";
-import { createPayment, moveStatus, savePerson, syncPaymentStatus } from "@/lib/db/writes";
+import { createPayment, lockApplication, moveStatus, savePerson, syncPaymentStatus } from "@/lib/db/writes";
 import { LIVE_PAYMENT } from "@/lib/db/queries/shared";
 import { formatINR } from "@/lib/money";
 import { missingDocuments, priorAid } from "@/lib/db/queries/applications";
@@ -89,6 +89,11 @@ export const saveApplication = action("applications.write", applicationSchema, a
   if (existing) {
     if (existing.status !== "DRAFT") {
       if (!data.approvedAmountPaise) throw new UserError("A recorded case needs its approved amount.");
+      // Changing what the trust approved is a decision, not data entry.
+      if (data.approvedAmountPaise !== existing.approvedAmountPaise && !can(ctx, "applications.decide")) {
+        throw new UserError(`Only the general secretary can change the approved amount of case ${existing.caseNo}.`);
+      }
+      await lockApplication(tx, existing.id);
       const paid = (await tx.payment.aggregate({ where: { ...LIVE_PAYMENT, applicationId: existing.id }, _sum: { amountPaise: true } }))._sum.amountPaise ?? 0n;
       if (data.approvedAmountPaise < paid) throw new UserError(`${formatINR(paid)} has already been paid on case ${existing.caseNo}. The approved amount cannot be lower.`);
     }
@@ -138,6 +143,10 @@ export const saveApplication = action("applications.write", applicationSchema, a
  * checks the required fields and documents, assigns the case number, stamps who recorded it.
  */
 export const submitApplication = action("applications.write", recordCaseSchema, async ({ id, payment }, { ctx, tx, audit }) => {
+  // Recording the cheque is a payment: only roles that may pay (not operators) can fill Block D.
+  if (payment) assertPermission(ctx, "payments.write");
+  // Lock the draft so a double click cannot record it twice (and burn a second case number).
+  await lockApplication(tx, id);
   const a = await tx.application.findFirst({ where: { id }, include: { applicant: true, patient: true, attachments: { where: { deletedAt: null }, select: { type: true } } } });
   if (!a) throw new UserError("That case no longer exists.");
   if (a.status !== "DRAFT") throw new UserError(`Case ${a.caseNo} has already been recorded.`);

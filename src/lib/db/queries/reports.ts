@@ -7,6 +7,7 @@ import { PAYMENT_MODE, PAYMENT_STATUS, TOWARDS } from "@/lib/labels";
 import type { ViewContext } from "@/lib/redact";
 import { LIVE_PAYMENT } from "./shared";
 import { donorName } from "./donations";
+import { payeeMasked } from "./payments";
 
 // The eight reports (docs/02 §10). Each returns one uniform table so the screen, the Excel
 // export and the PDF export render the same thing. Religion is never a dimension.
@@ -74,7 +75,7 @@ async function disbursements(ctx: ViewContext, p: Period): Promise<ReportTable[]
       ],
       rows: pays.map((x) => ({
         month: fmtMonth(x.paymentDate), date: fmtDate(x.paymentDate), voucher: x.voucherNo, caseNo: x.application.caseNo,
-        payee: x.hospital?.name ?? (ctx.meetingMode ? "—" : x.payeeName ?? "—"), mode: PAYMENT_MODE[x.mode], ref: x.chequeNo ?? x.referenceNo ?? "",
+        payee: x.hospital?.name ?? (payeeMasked(ctx) ? "—" : x.payeeName ?? "—"), mode: PAYMENT_MODE[x.mode], ref: x.chequeNo ?? x.referenceNo ?? "",
         towards: TOWARDS[x.towards], status: PAYMENT_STATUS[x.status], amount: x.amountPaise,
       })),
       totals: { month: "Total", amount: sumBig(pays.map((x) => x.amountPaise)) },
@@ -137,7 +138,10 @@ async function diseases(_ctx: ViewContext, p: Period): Promise<ReportTable[]> {
   }];
 }
 
-async function areas(_ctx: ViewContext, p: Period): Promise<ReportTable[]> {
+async function areas(ctx: ViewContext, p: Period): Promise<ReportTable[]> {
+  const columns: ReportColumn[] = [{ key: "area", label: "Area" }, { key: "cases", label: "Cases received", align: "right" }, { key: "total", label: "Amount paid", align: "right", money: true }];
+  // Area is identifying in a town this size (docs/03 §3), so the whole breakdown hides with identities.
+  if (ctx.meetingMode) return [{ title: `Area-wise summary — ${p.label}`, columns, rows: [], note: "Hidden while identities are hidden." }];
   const [pays, apps, areaRows] = await Promise.all([
     livePayments(p),
     prisma.application.findMany({ where: { applicationDate: { gte: p.from, lt: p.to }, status: { not: "DRAFT" } }, select: { id: true, patient: { select: { areaId: true } } } }),
@@ -156,7 +160,7 @@ async function areas(_ctx: ViewContext, p: Period): Promise<ReportTable[]> {
   const rows = [...byA.entries()].sort((a, b) => (b[1].total > a[1].total ? 1 : -1));
   return [{
     title: `Area-wise summary — ${p.label}`,
-    columns: [{ key: "area", label: "Area" }, { key: "cases", label: "Cases received", align: "right" }, { key: "total", label: "Amount paid", align: "right", money: true }],
+    columns,
     rows: rows.map(([area, v]) => ({ area, cases: v.cases, total: v.total })),
     totals: { area: "Total", cases: apps.length, total: sumBig(rows.map(([, v]) => v.total)) },
     chart: rows.slice(0, 12).map(([area, v]) => ({ name: area, value: toNum(v.total) })),

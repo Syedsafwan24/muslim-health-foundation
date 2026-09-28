@@ -34,11 +34,30 @@ export function diff<T extends Record<string, unknown>>(before: T, after: Partia
   return { before: b, after: a };
 }
 
+/**
+ * The client address as seen by our reverse proxy. `X-Real-IP` is set (overwritten) by the proxy;
+ * failing that, the RIGHT-most `X-Forwarded-For` entry is the one the proxy appended. The left-most
+ * entry is whatever the client sent and must never be trusted.
+ */
+export function clientIpFrom(h: { get(k: string): string | null | undefined }): string | null {
+  const real = h.get("x-real-ip")?.trim();
+  if (real) return real;
+  return h.get("x-forwarded-for")?.split(",").at(-1)?.trim() || null;
+}
+
+export async function clientIp(): Promise<string | null> {
+  try {
+    return clientIpFrom(await headers());
+  } catch {
+    return null; // outside a request
+  }
+}
+
 async function requestMeta() {
   try {
     const h = await headers();
     return {
-      ipAddress: h.get("x-forwarded-for")?.split(",")[0].trim() ?? h.get("x-real-ip") ?? null,
+      ipAddress: clientIpFrom(h),
       userAgent: h.get("user-agent"),
     };
   } catch {

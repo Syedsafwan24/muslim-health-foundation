@@ -3,6 +3,7 @@ import type { Payment, PaymentMode, PaymentStatus, PaymentTowards, Prisma } from
 import { prisma } from "@/lib/db";
 import { fyRange } from "@/lib/fy";
 import type { ViewContext } from "@/lib/redact";
+import { can } from "@/lib/auth/permissions";
 import { AMOUNT_BANDS, PAYMENT_MODE, PAYMENT_STATUS, type AmountBand } from "@/lib/labels";
 import type { readParams } from "@/lib/params";
 import { pageArgs, PAGE_SIZE, type Page } from "./shared";
@@ -29,6 +30,11 @@ export type PaymentView = {
   isReversal: boolean;
   fundName: string;
 };
+
+/** Payee name, remark and bounce reason: hidden in Meeting Mode and from roles that only see amounts. */
+export function payeeMasked(ctx: ViewContext): boolean {
+  return ctx.meetingMode || !can(ctx, "payments.write");
+}
 
 type Row = Payment & { hospital?: { name: string } | null; bank?: { name: string } | null; fund?: { name: string } | null };
 
@@ -147,7 +153,7 @@ export async function listPayments(ctx: ViewContext, f: PaymentFilters) {
   const [rows, groups] = await Promise.all([
     prisma.payment.findMany({
       where,
-      orderBy: paymentOrder(f.sort ?? "-date", ctx.meetingMode),
+      orderBy: paymentOrder(f.sort ?? "-date", payeeMasked(ctx)),
       ...(f.all ? {} : pageArgs(f.page ?? 1)),
       include: { hospital: true, bank: true, fund: true, application: { select: { caseNo: true } } },
     }),
@@ -169,9 +175,10 @@ export async function listPayments(ctx: ViewContext, f: PaymentFilters) {
   const reversedIds = new Set(
     (await prisma.payment.findMany({ where: { reversalOfId: { in: rows.map((r) => r.id) } }, select: { reversalOfId: true } })).map((r) => r.reversalOfId),
   );
-  // The register has no identity beyond the payee name, which follows Meeting Mode.
+  // The register has no identity beyond the payee name, which follows payeeMasked().
+  const masked = payeeMasked(ctx);
   const page: Page<PaymentView & { caseNo: string; reversed: boolean }> = {
-    rows: rows.map((p) => ({ ...paymentView(p, ctx.meetingMode), caseNo: p.application.caseNo, reversed: reversedIds.has(p.id) })),
+    rows: rows.map((p) => ({ ...paymentView(p, masked), caseNo: p.application.caseNo, reversed: reversedIds.has(p.id) })),
     total,
     page: f.page ?? 1,
     pageSize: PAGE_SIZE,
@@ -185,5 +192,5 @@ export async function getPayment(ctx: ViewContext, id: string) {
     include: { hospital: true, bank: true, fund: true, application: { select: { id: true, caseNo: true } } },
   });
   if (!p) return null;
-  return { ...paymentView(p, ctx.meetingMode), caseNo: p.application.caseNo, createdAt: p.createdAt };
+  return { ...paymentView(p, payeeMasked(ctx)), caseNo: p.application.caseNo, createdAt: p.createdAt };
 }

@@ -114,7 +114,8 @@ function orderBy(ctx: ViewContext, sort: ApplicationSort): Prisma.ApplicationOrd
     // Sorting by name would reveal names through order, so Meeting Mode sorts by person code.
     patient: { patient: ctx.meetingMode ? { personCode: dir } : { fullName: dir } },
     gender: { patient: { gender: nulls } },
-    age: { patient: { ageYears: nulls } },
+    // Exact-age order would give away exact ages behind the bands, so Meeting Mode falls back to person code.
+    age: { patient: ctx.meetingMode ? { personCode: dir } : { ageYears: nulls } },
     disease: { disease: { name: dir } },
     hospital: { hospital: { name: dir } },
     status: { status: dir },
@@ -294,7 +295,8 @@ export async function getApplication(ctx: ViewContext, id: string) {
     decidedAt: a.decidedAt,
     createdByName: a.createdBy.name,
     paidPaise,
-    payments: a.payments.map((p) => ({ ...paymentView(p, masked), reversed: reversed.has(p.id) })) as (PaymentView & { reversed: boolean })[],
+    // Roles without payments.read get no payment rows; roles that only see amounts get no payee details.
+    payments: (can(ctx, "payments.read") ? a.payments : []).map((p) => ({ ...paymentView(p, masked || !can(ctx, "payments.write")), reversed: reversed.has(p.id) })) as (PaymentView & { reversed: boolean })[],
     attachments: a.attachments.map((x) => attachmentView(x, ctx, masked)) as AttachmentView[],
     presentTypes: [...new Set(a.attachments.map((x) => x.type))],
     missingDocuments: missing,
@@ -304,11 +306,11 @@ export async function getApplication(ctx: ViewContext, id: string) {
     watch: [a.applicant, a.patient]
       .filter((p, i, arr) => p.watchFlag && arr.findIndex((x) => x.id === p.id) === i)
       .map((p) => ({ personCode: p.personCode, note: masked ? null : p.watchNote })),
-    // Donor names on earmarked donations are hidden in Meeting Mode.
+    // Donor names on earmarked donations are hidden in Meeting Mode and from roles without donations.read.
     earmarks: earmarks.map((d) => ({
       receiptNo: d.receiptNo,
       amountPaise: d.amountPaise,
-      donorName: masked || (d.donor.isAnonymous && !can(ctx, "donors.seeAnonymous")) ? (masked ? "Donor" : "Anonymous donor") : d.donor.name,
+      donorName: masked || !can(ctx, "donations.read") ? "Donor" : d.donor.isAnonymous && !can(ctx, "donors.seeAnonymous") ? "Anonymous donor" : d.donor.name,
     })),
     bounced: a.payments.some((p) => p.status === "BOUNCED"),
   };
@@ -339,7 +341,7 @@ export async function getApplicationHistory(ctx: ViewContext, id: string, masked
         at: a.createdAt, kind: "audit", action: a.action, actor: a.actor?.name ?? null,
         // Summaries of other users' actions are hidden in Meeting Mode (docs/03 §3).
         text: masked && a.actorId !== ctx.userId ? "" : a.summary,
-        reason: a.action === "REVEAL_IDENTITY" ? a.reason : null,
+        reason: a.action === "REVEAL_IDENTITY" && !ctx.meetingMode ? a.reason : null,
         highlight: a.action === "REVEAL_IDENTITY",
       })),
   ];

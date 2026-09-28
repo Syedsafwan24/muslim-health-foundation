@@ -9,7 +9,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   const tabs = [
     all && { href: "/settings", label: "Organisation" },
     all && { href: "/settings/privacy", label: "Privacy and meeting mode" },
-    all && { href: "/settings/users", label: "Users and roles" },
+    can(ctx, "users.manage") && { href: "/settings/users", label: "Users and roles" },
     can(ctx, "funds.read") && { href: "/funds", label: "Funds" },
     all && { href: "/settings/masters", label: "Masters" },
     all && { href: "/settings/numbering", label: "Numbering" },

@@ -6,6 +6,7 @@ import { formatINR } from "@/lib/money";
 import { fromDateInput, getFiscalYear } from "@/lib/fy";
 import { nextExpenseNo } from "@/lib/numbering";
 import { fundBalance } from "@/lib/db/queries/funds";
+import { lockFund } from "@/lib/db/writes";
 import { expenseSchema } from "@/lib/validators";
 
 // Zakat cannot pay the trust's running costs. Only funds with allowsExpenses may be charged,
@@ -15,6 +16,7 @@ export const createExpense = action("expenses.write", expenseSchema, async (inpu
   if (!funds.length) throw new UserError("No fund is available for expenses yet. Add a non-Zakat fund in Settings to record administrative costs.");
   const fund = input.fundId ? funds.find((f) => f.id === input.fundId) : funds.length === 1 ? funds[0] : null;
   if (!fund) throw new UserError("Choose a fund that allows expenses.");
+  await lockFund(tx, fund.id);
   const balance = await fundBalance(fund.id, tx);
   if (input.amountPaise > balance) throw new UserError(`${fund.name} fund has ${formatINR(balance)} left. Reduce the amount or choose another fund.`);
   const expenseDate = fromDateInput(input.expenseDate);

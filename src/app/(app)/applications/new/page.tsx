@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { EyeOff } from "lucide-react";
 import { requirePage } from "@/lib/auth/context";
+import { can } from "@/lib/auth/permissions";
 import { masterOptions } from "@/lib/db/queries/admin";
 import { activeFunds } from "@/lib/db/queries/funds";
 import { caseSuggestions } from "@/lib/db/queries/applications";
@@ -35,6 +36,7 @@ export default async function NewApplicationPage() {
         }}
         maxMb={maxMb}
         isDraft
+        canPay={can(ctx, "payments.write")}
         initial={{
           applicationDate: toDateInput(new Date()),
           applicant: emptyPerson(),

@@ -51,6 +51,9 @@ function personRows(p: PersonView): [string, string][] {
 }
 
 export async function GET(req: Request, { params }: { params: Promise<{ report: string }> }) {
+  // Exports write audit rows, so refuse cross-site GETs (CSRF). Absent header = old browser / curl.
+  const site = req.headers.get("sec-fetch-site");
+  if (site && site !== "same-origin" && site !== "none") return deny("Open this from the app.", 403);
   let ctx: ViewContext;
   try {
     ctx = await requireViewContext();
@@ -64,7 +67,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ report: 
 
   switch (report) {
     case "case-sheet": {
-      if (!can(ctx, "applications.read")) return deny("Not available to your role.");
+      if (!can(ctx, "applications.read") || !can(ctx, "reports.export")) return deny("Not available to your role.");
       const a = await getApplication(ctx, id);
       if (!a) return deny("Not found.", 404);
       const m = a.masked;
@@ -100,7 +103,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ report: 
     }
 
     case "voucher": {
-      if (!can(ctx, "payments.read")) return deny("Not available to your role.");
+      if (!can(ctx, "payments.read") || !can(ctx, "reports.export")) return deny("Not available to your role.");
       const p = await getPayment(ctx, id);
       if (!p) return deny("Not found.", 404);
       const abs = p.amountPaise < 0n ? -p.amountPaise : p.amountPaise;
@@ -124,7 +127,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ report: 
     }
 
     case "receipt": {
-      if (!can(ctx, "donations.read")) return deny("Not available to your role.");
+      if (!can(ctx, "donations.read") || !can(ctx, "reports.export")) return deny("Not available to your role.");
       const d = await getDonation(ctx, id);
       if (!d) return deny("Not found.", 404);
       const buf = await toPdf(
@@ -138,12 +141,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ report: 
           }}
         />,
       );
-      await recordExport(ctx, { what: `receipt ${d.receiptNo}`, entityId: d.id, filters: {}, rows: 1, redacted: d.donor.name === "Anonymous donor" });
+      await recordExport(ctx, { what: `receipt ${d.receiptNo}`, entityId: d.id, filters: {}, rows: 1, redacted: d.donor.name === "Anonymous donor" || d.donor.name === "Donor" });
       return file(buf, `${d.receiptNo}.pdf`, "pdf");
     }
 
     case "donor-statement": {
-      if (!can(ctx, "donations.read")) return deny("Not available to your role.");
+      if (!can(ctx, "donations.read") || !can(ctx, "reports.export")) return deny("Not available to your role.");
       const d = await getDonor(ctx, id);
       if (!d) return deny("Not found.", 404);
       const fy = isFiscalYear(q("fy")) ? q("fy")! : getFiscalYear();

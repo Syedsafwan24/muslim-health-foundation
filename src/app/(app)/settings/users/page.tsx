@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Users and roles" };
 const ROLES = Object.keys(ROLE_LABEL) as (keyof typeof ROLE_LABEL)[];
 
 export default async function UsersSettings() {
-  const ctx = await requirePage("settings.read");
+  const ctx = await requirePage("users.manage");
   const users = await listUsers(ctx);
   const manage = can(ctx, "users.manage");
   const th = "px-3 py-2.5 text-label font-medium";

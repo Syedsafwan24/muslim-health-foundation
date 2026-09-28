@@ -25,7 +25,7 @@ export const paymentsExport: ListExport = {
           { key: "amount", label: "Amount", align: "right", money: true }, { key: "status", label: "Status" },
         ],
         rows: d.rows.map((r) => ({
-          voucher: r.voucherNo, date: fmtDate(r.paymentDate), caseNo: r.caseNo, payee: r.hospitalName ?? r.payeeName ?? (ctx.meetingMode ? "Hidden" : ""),
+          voucher: r.voucherNo, date: fmtDate(r.paymentDate), caseNo: r.caseNo, payee: r.hospitalName ?? r.payeeName ?? (r.payeeName === undefined ? "Hidden" : ""),
           mode: PAYMENT_MODE[r.mode], ref: r.chequeNo ?? r.referenceNo, towards: TOWARDS[r.towards], fund: r.fundName, amount: r.amountPaise,
           status: [PAYMENT_STATUS[r.status], r.isReversal ? "Reversal" : "", r.reversed ? "Reversed" : ""].filter(Boolean).join(" · "),
         })),
@@ -72,6 +72,7 @@ export const donorsExport: ListExport = {
           { key: "total", label: f.from || f.to ? "Given in dates" : "Lifetime given", align: "right", money: true },
           { key: "fy", label: `Given in FY ${ctx.fy}`, align: "right", money: true },
         ],
+        // listDonors already nulls city (and phone) for anonymous donors the role may not see.
         rows: d.rows.map((r) => ({
           code: r.donorCode, name: r.name, type: DONOR_TYPE[r.type], city: r.city, count: r.count,
           last: r.lastDonationAt ? fmtDate(r.lastDonationAt) : null, total: r.lifetimePaise, fy: r.fyPaise,

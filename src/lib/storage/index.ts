@@ -1,5 +1,5 @@
 import "server-only";
-import { CreateBucketCommand, GetObjectCommand, HeadBucketCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { CreateBucketCommand, DeleteObjectsCommand, GetObjectCommand, HeadBucketCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // Private bucket. Keys never reach the client; access is only through 5-minute signed URLs
@@ -36,6 +36,11 @@ async function ensureBucket() {
 export async function putObject(key: string, body: Buffer, contentType: string) {
   await ensureBucket();
   await s3().send(new PutObjectCommand({ Bucket: bucket(), Key: key, Body: body, ContentType: contentType }));
+}
+
+export async function deleteObjects(keys: string[]) {
+  if (!keys.length) return;
+  await s3().send(new DeleteObjectsCommand({ Bucket: bucket(), Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true } }));
 }
 
 export async function signedGetUrl(key: string, opts: { download?: string; contentType: string }) {

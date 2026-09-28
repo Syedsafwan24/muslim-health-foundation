@@ -87,7 +87,7 @@ export async function listUsers(ctx: ViewContext) {
   }));
 }
 
-export async function privacySettings() {
+export async function privacySettings(ctx: Pick<ViewContext, "meetingMode">) {
   const [s, lastToggle, reveals] = await Promise.all([
     getSettings(["meetingMode.global", "reveal.minutes"]),
     prisma.auditLog.findFirst({ where: { action: "MEETING_MODE_TOGGLE" }, orderBy: { createdAt: "desc" }, include: { actor: { select: { name: true } } } }),
@@ -97,7 +97,7 @@ export async function privacySettings() {
     global: s["meetingMode.global"],
     revealMinutes: s["reveal.minutes"],
     lastToggle: lastToggle ? { at: lastToggle.createdAt, by: lastToggle.actor?.name ?? "System", summary: lastToggle.summary } : null,
-    reveals: reveals.map((r) => ({ id: r.id, at: r.createdAt, by: r.actor?.name ?? "", summary: r.summary, reason: r.reason })),
+    reveals: reveals.map((r) => ({ id: r.id, at: r.createdAt, by: r.actor?.name ?? "", summary: r.summary, reason: ctx.meetingMode ? null : r.reason })),
   };
 }
 

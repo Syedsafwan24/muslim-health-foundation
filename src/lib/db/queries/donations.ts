@@ -42,12 +42,14 @@ const DONATION_ORDER = {
   receipt: (d: Dir) => [{ receiptNo: d }],
   date: (d: Dir) => [{ donationDate: d }],
   // Anonymous donors group together first, so the order never hints at a hidden name's place among the others.
-  donor: (d: Dir) => [{ donor: { isAnonymous: d } }, { donor: { name: d } }],
+  // Inside the group a name tie-break would still rank hidden names, so roles that cannot see them get donor code.
+  // ponytail: Prisma has no CASE in orderBy, so those roles get donor-code order for named donors too.
+  donor: (d: Dir, seeAnon: boolean) => [{ donor: { isAnonymous: d } }, { donor: seeAnon ? { name: d } : { donorCode: d } }],
   fund: (d: Dir) => [{ fund: { name: d } }],
   mode: (d: Dir) => [{ mode: d }],
   ref: (d: Dir) => [{ chequeNo: { sort: d, nulls: "last" } }, { referenceNo: { sort: d, nulls: "last" } }],
   amount: (d: Dir) => [{ amountPaise: d }],
-} satisfies Record<string, (d: Dir) => Prisma.DonationOrderByWithRelationInput[]>;
+} satisfies Record<string, (d: Dir, seeAnon: boolean) => Prisma.DonationOrderByWithRelationInput[]>;
 type DonationSortKey = keyof typeof DONATION_ORDER;
 export type DonationSort = DonationSortKey | `-${DonationSortKey}`;
 export const DONATION_SORTS = sortsOf(DONATION_ORDER);
@@ -94,7 +96,7 @@ export async function listDonations(ctx: ViewContext, f: DonationFilters) {
   const [rows, total, groups, funds] = await Promise.all([
     prisma.donation.findMany({
       where,
-      orderBy: [...DONATION_ORDER[keyOf<DonationSortKey>(sort)](dirOf(sort)), { receiptNo: dirOf(sort) }],
+      orderBy: [...DONATION_ORDER[keyOf<DonationSortKey>(sort)](dirOf(sort), can(ctx, "donors.seeAnonymous")), { receiptNo: dirOf(sort) }],
       ...(f.all ? {} : pageArgs(f.page ?? 1)),
       include: { donor: true, fund: true },
     }),
@@ -189,9 +191,10 @@ export async function listDonors(ctx: ViewContext, f: DonorFilters) {
   const fyById = new Map(inFy.map((g) => [g.donorId, g._sum.amountPaise ?? 0n]));
   let rows: DonorRow[] = donors.map((d) => {
     const s = byId.get(d.id);
+    const hidden = d.isAnonymous && !seeAnon;
     return {
-      id: d.id, donorCode: d.donorCode, name: donorName(d, ctx), type: d.type, city: d.city, isAnonymous: d.isAnonymous,
-      phone: d.isAnonymous && !seeAnon ? null : d.phone,
+      id: d.id, donorCode: d.donorCode, name: donorName(d, ctx), type: d.type, city: hidden ? null : d.city, isAnonymous: d.isAnonymous,
+      phone: hidden ? null : d.phone,
       lifetimePaise: s?._sum.amountPaise ?? 0n, lastDonationAt: s?._max.donationDate ?? null, count: s?._count ?? 0,
       fyPaise: fyById.get(d.id) ?? 0n,
     };
@@ -233,11 +236,11 @@ export async function getDonor(ctx: ViewContext, id: string) {
     donor: {
       id: d.id, donorCode: d.donorCode, name: donorName(d, ctx), type: d.type, isAnonymous: d.isAnonymous,
       phone: hidden ? null : d.phone, email: hidden ? null : d.email, addressLine: hidden ? null : d.addressLine,
-      city: d.city, country: d.country, panLast4: hidden ? null : d.panLast4, notes: hidden ? null : d.notes,
+      city: hidden ? null : d.city, country: hidden ? null : d.country, panLast4: hidden ? null : d.panLast4, notes: hidden ? null : d.notes,
     },
     donations: donations.map((x) => ({
       id: x.id, receiptNo: x.receiptNo, donationDate: x.donationDate, fundName: x.fund.name, amountPaise: x.amountPaise,
-      mode: x.mode, referenceNo: x.referenceNo, cancelled: !!x.cancelledAt, purposeNote: x.purposeNote,
+      mode: x.mode, referenceNo: x.referenceNo, cancelled: !!x.cancelledAt, purposeNote: hidden ? null : x.purposeNote,
     })),
     lifetimePaise: donations.filter((x) => !x.cancelledAt).reduce((s, x) => s + x.amountPaise, 0n),
   };
@@ -252,18 +255,20 @@ export async function getDonorForEdit(ctx: ViewContext, id: string) {
 export async function getDonation(ctx: ViewContext, id: string) {
   const d = await prisma.donation.findFirst({ where: { id }, include: { donor: true, fund: true, bank: true } });
   if (!d) return null;
-  const hidden = d.donor.isAnonymous && !can(ctx, "donors.seeAnonymous");
+  // In Meeting Mode a donation earmarked to a case must not tie a donor to that case (as on getApplication).
+  const veiled = ctx.meetingMode && !!d.earmarkApplicationId;
+  const hidden = veiled || (d.donor.isAnonymous && !can(ctx, "donors.seeAnonymous"));
   const earmark = d.earmarkApplicationId
     ? await prisma.application.findFirst({ where: { id: d.earmarkApplicationId }, select: { id: true, caseNo: true } })
     : null;
   return {
     id: d.id, receiptNo: d.receiptNo, donationDate: d.donationDate, amountPaise: d.amountPaise, mode: d.mode,
-    referenceNo: d.referenceNo, chequeNo: d.chequeNo, bankId: d.bankId, bankName: d.bank?.name ?? null, purposeNote: d.purposeNote,
+    referenceNo: d.referenceNo, chequeNo: d.chequeNo, bankId: d.bankId, bankName: d.bank?.name ?? null, purposeNote: hidden ? null : d.purposeNote,
     fundName: d.fund.name, fundId: d.fundId, isReceiptIssued: d.isReceiptIssued, cancelledAt: d.cancelledAt, cancelReason: d.cancelReason,
     earmark,
     donor: {
-      id: d.donor.id, donorCode: d.donor.donorCode, name: donorName(d.donor, ctx),
-      addressLine: hidden ? null : d.donor.addressLine, city: d.donor.city, panLast4: hidden ? null : d.donor.panLast4,
+      id: d.donor.id, donorCode: d.donor.donorCode, name: veiled ? "Donor" : donorName(d.donor, ctx),
+      addressLine: hidden ? null : d.donor.addressLine, city: hidden ? null : d.donor.city, panLast4: hidden ? null : d.donor.panLast4,
       isAnonymous: d.donor.isAnonymous,
     },
   };

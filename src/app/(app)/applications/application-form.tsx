@@ -42,7 +42,7 @@ const PAY = 4;
 const AUTOSAVE_MS = 3_000; // after the last keystroke
 
 export function ApplicationForm({
-  masters: initialMasters, initial, initialId, initialCaseNo, initialKnown, docs, maxMb, isDraft, initialStep = 0,
+  masters: initialMasters, initial, initialId, initialCaseNo, initialKnown, docs, maxMb, isDraft, canPay, initialStep = 0,
 }: {
   masters: Masters;
   initial: ApplicationInput;
@@ -52,6 +52,8 @@ export function ApplicationForm({
   docs?: DocState;
   maxMb: number;
   isDraft: boolean;
+  /** Only roles that may record payments see the cheque block (Block D). */
+  canPay: boolean;
   initialStep?: number;
 }) {
   const router = useRouter();
@@ -285,6 +287,7 @@ export function ApplicationForm({
               onAddHospital={addNew.ask("hospital")}
               onAddBank={addNew.ask("bank")}
               isDraft={isDraft}
+              canPay={canPay}
               recordRef={recordRef}
               onRecord={async (payment) => {
                 // Save any last edits (the approved amount lives on the case), then record it.
@@ -494,12 +497,13 @@ function DocumentsStep({ id, docs, maxMb }: { id: string; docs?: DocState; maxMb
 }
 
 /** Block D: Cheque · INR · Bank · Payment date · Mode of transfer · Towards · Name of the hospital · Remark */
-function PaymentStep({ form, masters, isDraft, recordRef, onRecord, onAddHospital, onAddBank }: {
+function PaymentStep({ form, masters, isDraft, recordRef, onRecord, onAddHospital, onAddBank, canPay }: {
   form: UseFormReturn<ApplicationInput>;
   masters: Masters;
   onAddHospital: (name: string) => Promise<{ value: string; label: string } | null>;
   onAddBank: (name: string) => Promise<{ value: string; label: string } | null>;
   isDraft: boolean;
+  canPay: boolean;
   recordRef: React.RefObject<(() => Promise<void>) | null>;
   onRecord: (payment: PaymentEntryInput | null) => Promise<unknown>;
 }) {
@@ -511,7 +515,8 @@ function PaymentStep({ form, masters, isDraft, recordRef, onRecord, onAddHospita
       towards: "HOSPITAL_BILL", hospitalId: caseHospital, remark: "", fundId: masters.funds.length === 1 ? masters.funds[0].id : "",
     },
   });
-  const [later, setLater] = useState(false);
+  // Without payment rights the case is saved without its cheque; an accountant records it later.
+  const [later, setLater] = useState(!canPay);
   const e = pay.formState.errors;
   const mode = pay.watch("mode");
   const towards = pay.watch("towards");
@@ -555,6 +560,8 @@ function PaymentStep({ form, masters, isDraft, recordRef, onRecord, onAddHospita
 
       {!isDraft ? (
         <p className="text-ui text-slate-body">Cheques for this case are recorded on its Payments tab.</p>
+      ) : !canPay ? (
+        <p className="text-ui text-slate-body">The cheque is recorded by the accountant or general secretary from the case&apos;s Payments tab after you save.</p>
       ) : (
         <>
           <label className="flex items-center gap-2 text-ui">

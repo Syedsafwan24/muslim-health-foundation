@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { signOut } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
-import { requireViewContext } from "@/lib/auth/context";
+import { getSignedIn, requireViewContext } from "@/lib/auth/context";
 import { isFiscalYear } from "@/lib/fy";
 import { globalSearch } from "@/lib/db/queries/admin";
 import { searchPeople } from "@/lib/db/queries/people";
@@ -31,8 +31,12 @@ export async function setTheme(theme: "light" | "dark" | "system") {
 
 export async function signOutAction() {
   try {
-    const ctx = await requireViewContext();
-    await audit(prisma, { actorId: ctx.userId, action: "LOGOUT", entity: "User", entityId: ctx.userId, summary: "Signed out" });
+    const s = await getSignedIn();
+    if (s) {
+      // Ends every copy of this session's token, not just this browser's cookie.
+      await prisma.user.update({ where: { id: s.ctx.userId }, data: { sessionVersion: { increment: 1 } } });
+      await audit(prisma, { actorId: s.ctx.userId, action: "LOGOUT", entity: "User", entityId: s.ctx.userId, summary: "Signed out" });
+    }
   } catch {
     // already signed out
   }
