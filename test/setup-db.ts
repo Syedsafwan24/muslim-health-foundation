@@ -1,6 +1,9 @@
 import { execSync } from "node:child_process";
+import { TEST_DATABASE_URL } from "./db-url";
 
-export const TEST_DATABASE_URL = process.env.DATABASE_URL_TEST ?? "postgresql://mhf:mhf@localhost:5433/mhf_test";
+// Still exported from here: it was this module's public surface before the resolution rules
+// moved to ./db-url, and vitest.config.ts is not the only possible caller.
+export { TEST_DATABASE_URL };
 
 /**
  * A separate test database, so the demo data is never touched. Non-destructive: applies any

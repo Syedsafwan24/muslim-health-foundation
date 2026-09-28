@@ -1,7 +1,6 @@
 import path from "node:path";
 import { defineConfig } from "vitest/config";
-
-const TEST_DATABASE_URL = process.env.DATABASE_URL_TEST ?? "postgresql://mhf:mhf@localhost:5433/mhf_test";
+import { TEST_DATABASE_URL } from "./test/db-url";
 
 export default defineConfig({
   test: {

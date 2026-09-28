@@ -350,6 +350,10 @@ async function main() {
       const y = Number(code.slice(0, 4));
       return { code, startsOn: fromZonedTime(`${y}-04-01T00:00:00`, TZ), endsOn: fromZonedTime(`${y + 1}-04-01T00:00:00`, TZ), openedById: admin.id };
     }),
+    // The 20260928122539_fiscal_years migration backfills the current year, so a freshly
+    // migrated database already holds one of these codes. The "already seeded?" guard above
+    // counts users, not fiscal years, and so does not catch it.
+    skipDuplicates: true,
   });
 
   // counters so the next generated numbers follow the seeded ones
