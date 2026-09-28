@@ -1,0 +1,19 @@
+# Production overlay. Applied automatically on the deployed host, which symlinks
+# docker-compose.override.yml -> this file; elsewhere use:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Why this exists: the base docker-compose.yml is for local development and publishes
+# Postgres and the object store on 0.0.0.0 with fixed demo credentials. On a host
+# without a firewall that puts the database on the public internet. Everything here
+# binds to loopback and takes its credentials from the environment instead.
+services:
+  db:
+    environment:
+      POSTGRES_PASSWORD: ${MHF_PG_PASSWORD:?set MHF_PG_PASSWORD in .env}
+    ports: !override ["127.0.0.1:5433:5432"]
+  storage:
+    environment:
+      RUSTFS_ACCESS_KEY: ${MHF_S3_ACCESS_KEY:?set MHF_S3_ACCESS_KEY in .env}
+      RUSTFS_SECRET_KEY: ${MHF_S3_SECRET_KEY:?set MHF_S3_SECRET_KEY in .env}
+      RUSTFS_CONSOLE_ENABLE: "false"
+    ports: !override ["127.0.0.1:9000:9000"]
