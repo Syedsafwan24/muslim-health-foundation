@@ -59,7 +59,7 @@ export function RevealButton({ applicationId, caseNo }: { applicationId: string;
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
-            if (reason.trim().length < 10) return setError("Give a reason of at least 10 characters.");
+            if (!reason.trim()) return setError("Say why you need to see the name.");
             setError(null);
             run(() => revealIdentity({ applicationId, reason, password }), "Identity revealed", () => { setOpen(false); setPassword(""); setReason(""); });
           }}

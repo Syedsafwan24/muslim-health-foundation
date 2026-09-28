@@ -102,7 +102,7 @@ export const closeFiscalYear = action(
 /** Undoes a close, for an entry that belongs to a year already closed. A reason is required. */
 export const reopenFiscalYear = action(
   "settings.write",
-  z.object({ code, password, reason: z.string().trim().min(10, "Give a reason of at least 10 characters").max(500) }),
+  z.object({ code, password, reason: z.string().trim().min(1, "Say why").max(500) }),
   async ({ code, password, reason }, { ctx, tx, audit }) => {
     if (!(await verifyPassword(ctx.userId, password))) throw new UserError("That password is not correct.");
     const row = await tx.fiscalYear.findFirst({ where: { code } });

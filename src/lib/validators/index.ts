@@ -85,7 +85,7 @@ export const watchSchema = z.object({ personId: id, watchFlag: z.boolean(), watc
 export const mergeSchema = z.object({
   keepId: id,
   mergeId: id,
-  reason: z.string().trim().min(10, "Give a reason of at least 10 characters"),
+  reason: z.string().trim().min(1, "Say why").max(500),
 });
 
 // ─────────────────────────── application ───────────────────────────
@@ -139,7 +139,7 @@ export type ApplicationInput = z.input<typeof applicationSchema>;
 
 export const revealSchema = z.object({
   applicationId: id,
-  reason: z.string().trim().min(10, "Give a reason of at least 10 characters").max(500),
+  reason: z.string().trim().min(1, "Say why").max(500),
   password: z.string().min(1, "Enter your password"),
 });
 
@@ -180,7 +180,7 @@ export type PaymentInput = z.input<typeof paymentSchema>;
 export const recordCaseSchema = z.object({ id, payment: paymentEntrySchema.nullable() });
 
 export const clearSchema = z.object({ ids: z.array(id).min(1, "Select at least one payment"), clearedOn: dateStr });
-export const reasonSchema = z.object({ id, reason: z.string().trim().min(5, "Give a reason of at least 5 characters").max(500) });
+export const reasonSchema = z.object({ id, reason: z.string().trim().min(1, "Say why").max(500) });
 
 // ─────────────────────────── donations ───────────────────────────
 

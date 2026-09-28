@@ -19,7 +19,7 @@ export function DeleteButton({ kind, id, name, backTo }: { kind: keyof typeof RU
   const [password, setPassword] = useState("");
   const [pending, start] = useTransition();
   const [tried, setTried] = useState(false);
-  const short = reason.trim().length < 3;
+  const short = !reason.trim();
   const submit = () => start(async () => {
     setTried(true);
     if (short || !password) return;
@@ -42,7 +42,7 @@ export function DeleteButton({ kind, id, name, backTo }: { kind: keyof typeof RU
               It disappears from every list and report. The activity log keeps a record of who deleted it and why.
             </DialogDescription>
           </DialogHeader>
-          <FormField id="del-reason" label="Why are you deleting it?" required error={tried && short ? "Say briefly why, for example: test entry" : undefined}>
+          <FormField id="del-reason" label="Why are you deleting it?" required error={tried && short ? "Say why, for example: test entry" : undefined}>
             <TextArea id="del-reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="For example: test entry, entered twice" />
           </FormField>
           <FormField id="del-password" label="Your password" required error={tried && !password ? "Enter your password" : undefined}>

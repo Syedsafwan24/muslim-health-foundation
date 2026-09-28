@@ -15,7 +15,7 @@ import { id } from "@/lib/validators";
 
 const input = z.object({
   id,
-  reason: z.string().trim().min(3, "Say briefly why, for example: test entry").max(500),
+  reason: z.string().trim().min(1, "Say why, for example: test entry").max(500),
   password: z.string().min(1, "Enter your password"),
 });
 
