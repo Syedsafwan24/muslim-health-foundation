@@ -20,7 +20,7 @@ export default async function DiseasesPage({ searchParams }: { searchParams: Sea
     <>
       <PageHeader
         title="Diseases"
-        meta={<>Patients, cases and amounts by disease for FY {ctx.fy}. Categories are managed in Settings → Masters.</>}
+        meta={<>Patients, cases and amounts by disease for FY {ctx.fy}. Open a disease to see its cases. Categories are managed in Settings → Lists.</>}
         actions={can(ctx, "reports.export") && <ExportButton name="diseases" />}
       />
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

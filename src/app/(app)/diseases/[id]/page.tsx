@@ -8,6 +8,7 @@ import { readParams, type SearchParams } from "@/lib/params";
 import { PageHeader, Pill } from "@/components/app/bits";
 import { BreakdownView } from "@/components/app/breakdown-view";
 import { ExportButton } from "@/components/app/export-button";
+import { DeleteButton } from "@/components/app/delete-button";
 
 export const metadata: Metadata = { title: "Disease" };
 
@@ -23,7 +24,10 @@ export default async function DiseasePage({ params, searchParams }: { params: Pr
         back={{ href: "/diseases", label: "Diseases" }}
         title={disease.name}
         meta={<>{disease.categoryName}{disease.isChronic && <Pill tone="info">Chronic — recurring support likely</Pill>}</>}
-        actions={can(ctx, "reports.export") && <ExportButton name="disease" params={{ id }} />}
+        actions={<>
+          {can(ctx, "reports.export") && <ExportButton name="disease" params={{ id }} />}
+          {can(ctx, "records.delete") && <DeleteButton kind="disease" id={id} name={disease.name} backTo="/diseases" />}
+        </>}
       />
       <BreakdownView
         d={d}

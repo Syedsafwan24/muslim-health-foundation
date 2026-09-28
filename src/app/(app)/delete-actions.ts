@@ -15,7 +15,7 @@ import { id } from "@/lib/validators";
 
 const input = z.object({
   id,
-  reason: z.string().trim().min(10, "Give a reason of at least 10 characters").max(500),
+  reason: z.string().trim().min(3, "Say briefly why, for example: test entry").max(500),
   password: z.string().min(1, "Enter your password"),
 });
 
@@ -83,5 +83,18 @@ export const deleteHospital = action("records.delete", input, async ({ id, reaso
   await tx.hospital.update({ where: { id }, data: { deletedAt: new Date() } });
   await audit({ action: "DELETE", entity: "Hospital", entityId: id, summary: `Deleted hospital ${h.name}`, reason });
   revalidatePath("/hospitals");
+  return { id };
+});
+
+/** A disease in the list. Refused while any case uses it. */
+export const deleteDisease = action("records.delete", input, async ({ id, reason, password }, { ctx, tx, audit }) => {
+  await confirm(ctx, password);
+  const d = await tx.disease.findFirst({ where: { id } });
+  if (!d) throw new UserError("That disease has already been deleted.");
+  const cases = await tx.application.count({ where: { diseaseId: id } });
+  if (cases) throw new UserError(`${d.name} is used by ${cases} case${cases === 1 ? "" : "s"}. Delete those cases first, or leave it in the list.`);
+  await tx.disease.update({ where: { id }, data: { deletedAt: new Date() } });
+  await audit({ action: "DELETE", entity: "Disease", entityId: id, summary: `Deleted disease ${d.name}`, reason });
+  revalidatePath("/diseases");
   return { id };
 });

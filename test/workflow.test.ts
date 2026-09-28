@@ -191,6 +191,9 @@ describe("an approved case from entry to paid", () => {
     expect(person.ok).toBe(false);
     if (!person.ok) expect(person.error).toMatch(/is on 1 case/);
     expect((await del.deleteHospital({ id: hospitalId, reason: "Entered by mistake", password: "x" })).ok).toBe(false);
+    const dis = await del.deleteDisease({ id: diseaseId, reason: "Entered by mistake", password: "x" });
+    expect(dis.ok).toBe(false);
+    if (!dis.ok) expect(dis.error).toMatch(/is used by/);
 
     await as("ACCOUNTANT");
     ok(await pays.cancelPayment({ id: p.id, reason: "wrong case entirely" }));
