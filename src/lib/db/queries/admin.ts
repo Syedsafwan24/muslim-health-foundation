@@ -158,7 +158,6 @@ export async function shellCounts(ctx: ViewContext) {
   return { notices, applicationsBadge, paymentsBadge: can(ctx, "payments.read") ? uncleared : 0 };
 }
 
-/** Settings → Numbering: the next number of each series (read-only preview). */
 export async function numberingPreview(fy: string) {
   const ids = [`case:${fy}`, `voucher:${fy}`, `receipt:${fy}`, `expense:${fy}`, "person", "donor"];
   const rows = await prisma.counter.findMany({ where: { id: { in: ids } } });
@@ -172,9 +171,4 @@ export async function numberingPreview(fy: string) {
     { series: "Person code", format: "P-{6 digits}", next: `P-${pad(next("person"), 6)}`, perFy: false },
     { series: "Donor code", format: "D-{5 digits}", next: `D-${pad(next("donor"), 5)}`, perFy: false },
   ];
-}
-
-export async function lastBackup() {
-  const row = await prisma.setting.findUnique({ where: { key: "backup.lastRunAt" } });
-  return typeof row?.value === "string" ? new Date(row.value) : null;
 }

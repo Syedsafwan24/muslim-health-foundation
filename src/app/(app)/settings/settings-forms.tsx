@@ -4,18 +4,15 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Role } from "@prisma/client";
 import { toast } from "sonner";
-import { Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { FormField, Select, TextInput } from "@/components/app/inputs";
 import type { ActionResult } from "@/lib/action";
-import type { ChecklistKey } from "@/lib/validators";
 import { ROLE_LABEL } from "@/lib/auth/permissions";
-import { CASE_DOCUMENTS } from "@/lib/labels";
-import { setDensity, setTheme } from "../prefs-actions";
 import {
-  deleteMaster, saveDocumentSettings, saveMaster, saveOrganisation, saveUser, setForceMeetingMode, setMeetingMode, setRevealMinutes,
+  deleteMaster, saveMaster, saveOrganisation, saveUser, setMeetingMode,
 } from "./actions";
 
 function useRun(done?: () => void) {
@@ -65,41 +62,6 @@ export function GlobalSwitch({ on, readOnly }: { on: boolean; readOnly: boolean 
   );
 }
 
-export function RevealMinutes({ minutes, readOnly }: { minutes: number; readOnly: boolean }) {
-  const { pending, run } = useRun();
-  return (
-    <Select id="reveal-minutes" aria-label="Reveal expires after" value={String(minutes)} disabled={readOnly || pending} className="w-40"
-      onChange={(e) => run(() => setRevealMinutes({ minutes: Number(e.target.value) }), "Reveal expiry saved")}
-      options={[1, 2, 5, 10, 15].map((m) => ({ value: String(m), label: `${m} minutes` }))} />
-  );
-}
-
-export function PinnedAccounts({ pinned, others, readOnly }: { pinned: { id: string; name: string; role: Role }[]; others: { id: string; name: string; role: Role }[]; readOnly: boolean }) {
-  const { pending, run } = useRun();
-  const [pick, setPick] = useState(others[0]?.id ?? "");
-  return (
-    <div className="space-y-3">
-      <ul className="divide-y divide-rule rounded-control border border-rule">
-        {pinned.length === 0 && <li className="px-3 py-2.5 text-ui text-slate-body">No accounts are pinned.</li>}
-        {pinned.map((u) => (
-          <li key={u.id} className="flex items-center gap-3 px-3 py-2.5 text-ui">
-            <span className="font-medium">{u.name}</span>
-            <span className="text-slate-body">{ROLE_LABEL[u.role]}</span>
-            <span className="ml-auto text-label text-redacted">always hidden</span>
-            {!readOnly && <Button size="icon" variant="ghost" aria-label={`Stop always hiding identities for ${u.name}`} disabled={pending} onClick={() => run(() => setForceMeetingMode({ userId: u.id, on: false }), `${u.name} unpinned`)}><X aria-hidden /></Button>}
-          </li>
-        ))}
-      </ul>
-      {!readOnly && others.length > 0 && (
-        <div className="flex flex-wrap items-end gap-2">
-          <FormField id="pin-user" label="Add an account"><Select id="pin-user" value={pick} onChange={(e) => setPick(e.target.value)} options={others.map((u) => ({ value: u.id, label: `${u.name} · ${ROLE_LABEL[u.role]}` }))} /></FormField>
-          <Button variant="outline" disabled={pending || !pick} onClick={() => run(() => setForceMeetingMode({ userId: pick, on: true }), "Account pinned to meeting mode")}><Plus aria-hidden /> Always hide for this account</Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─────────────────────────── users ───────────────────────────
 
 type UserRow = { id: string; name: string; email: string; role: Role; isActive: boolean; forceMeetingMode: boolean };
@@ -113,14 +75,14 @@ export function UserDialog({ user }: { user?: UserRow }) {
       <DialogTrigger asChild>{user ? <Button size="sm" variant="outline">Edit</Button> : <Button><Plus aria-hidden /> Add user</Button>}</DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); run(() => saveUser({ ...v, id: user?.id }), user ? "Account updated" : "Account created"); }}>
-          <DialogHeader><DialogTitle>{user ? `Edit ${user.name}` : "Add user"}</DialogTitle><DialogDescription>User changes need your own password.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>{user ? `Edit ${user.name}` : "Add user"}</DialogTitle><DialogDescription>To confirm, enter your own password at the bottom.</DialogDescription></DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField id="u-name" label="Name" required><TextInput id="u-name" value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} /></FormField>
             <FormField id="u-email" label="Email" required><TextInput id="u-email" type="email" value={v.email} onChange={(e) => setV({ ...v, email: e.target.value })} /></FormField>
-            <FormField id="u-role" label="Role"><Select id="u-role" value={v.role} onChange={(e) => setV({ ...v, role: e.target.value as Role })} options={Object.entries(ROLE_LABEL).map(([value, label]) => ({ value, label }))} /></FormField>
+            <FormField id="u-role" label="Job"><Select id="u-role" value={v.role} onChange={(e) => setV({ ...v, role: e.target.value as Role })} options={Object.entries(ROLE_LABEL).map(([value, label]) => ({ value, label }))} /></FormField>
             <FormField id="u-pass" label={user ? "Reset password" : "Starting password"} hint="At least 10 characters"><TextInput id="u-pass" type="password" autoComplete="new-password" value={v.newPassword} onChange={(e) => setV({ ...v, newPassword: e.target.value })} /></FormField>
             <label className="flex items-center gap-2 text-ui"><input type="checkbox" checked={v.isActive} onChange={(e) => setV({ ...v, isActive: e.target.checked })} /> Active</label>
-            <label className="flex items-center gap-2 text-ui"><input type="checkbox" checked={v.forceMeetingMode} onChange={(e) => setV({ ...v, forceMeetingMode: e.target.checked })} /> Always hide identities</label>
+            <label className="flex items-center gap-2 text-ui"><input type="checkbox" checked={v.forceMeetingMode} onChange={(e) => setV({ ...v, forceMeetingMode: e.target.checked })} /> Always hide names</label>
             <FormField id="u-admin" label="Your password" required className="sm:col-span-2"><TextInput id="u-admin" type="password" autoComplete="current-password" value={v.adminPassword} onChange={(e) => setV({ ...v, adminPassword: e.target.value })} /></FormField>
           </div>
           <DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" disabled={pending}>{user ? "Save account" : "Create account"}</Button></DialogFooter>
@@ -174,38 +136,4 @@ export function MasterRow({ kind, id, name, label, uses, extra, categories, read
 
 // ─────────────────────────── documents ───────────────────────────
 
-export function DocumentSettings({ maxFileMb, maxFilesPerCase, readOnly }: { maxFileMb: number; maxFilesPerCase: number; readOnly: boolean }) {
-  const [mb, setMb] = useState(maxFileMb);
-  const [files, setFiles] = useState(maxFilesPerCase);
-  const { pending, run } = useRun();
-  return (
-    <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); run(() => saveDocumentSettings({ required: CASE_DOCUMENTS.map((d) => d.type as ChecklistKey), maxFileMb: mb, maxFilesPerCase: files }), "Document rules saved"); }}>
-      <p className="text-ui text-slate-body">Every case needs: {CASE_DOCUMENTS.map((d) => d.label).join(", ")}.</p>
-      <div className="grid max-w-md grid-cols-2 gap-4">
-        <FormField id="doc-mb" label="Max file size (MB)"><TextInput id="doc-mb" type="number" min={1} max={15} disabled={readOnly} value={mb} onChange={(e) => setMb(Number(e.target.value))} /></FormField>
-        <FormField id="doc-files" label="Max files per case"><TextInput id="doc-files" type="number" min={5} max={40} disabled={readOnly} value={files} onChange={(e) => setFiles(Number(e.target.value))} /></FormField>
-      </div>
-      <p className="text-ui text-slate-body">Accepted: PDF, JPG, PNG, HEIC, WebP. Photos are re-encoded on upload, which removes location data (always on). Images over 2500px are scaled down.</p>
-      {!readOnly && <Button type="submit" disabled={pending}>Save document rules</Button>}
-    </form>
-  );
-}
 
-// ─────────────────────────── appearance ───────────────────────────
-
-export function Appearance({ theme, density }: { theme: string; density: string }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  return (
-    <div className="grid max-w-md gap-4">
-      <FormField id="theme" label="Theme">
-        <Select id="theme" value={theme} disabled={pending} onChange={(e) => start(async () => { await setTheme(e.target.value as "light"); router.refresh(); })}
-          options={[{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "system", label: "Same as this computer" }]} />
-      </FormField>
-      <FormField id="density" label="Density" hint="Compact rows suit long data-entry sessions.">
-        <Select id="density" value={density} disabled={pending} onChange={(e) => start(async () => { await setDensity(e.target.value as "compact"); router.refresh(); })}
-          options={[{ value: "comfortable", label: "Comfortable" }, { value: "compact", label: "Compact" }]} />
-      </FormField>
-    </div>
-  );
-}

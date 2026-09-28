@@ -7,7 +7,7 @@ import { action, UserError } from "@/lib/action";
 import { verifyPassword } from "@/lib/auth";
 import { diff } from "@/lib/audit";
 import { getSetting, setSetting } from "@/lib/settings";
-import { documentSettingsSchema, hospitalSchema, id, masterSchema, optText, userSchema } from "@/lib/validators";
+import { hospitalSchema, id, masterSchema, optText, userSchema } from "@/lib/validators";
 
 // ─────────────────────────── meeting mode ───────────────────────────
 
@@ -18,24 +18,6 @@ export const setMeetingMode = action("meetingMode.toggle", z.object({ on: z.bool
   await setSetting(tx, "meetingMode.global", on, ctx.userId);
   await audit({ action: "MEETING_MODE_TOGGLE", entity: "Setting", entityId: "meetingMode.global", summary: on ? "Turned meeting mode on for everyone" : "Turned meeting mode off", before: { on: current }, after: { on } });
   revalidatePath("/", "layout");
-  return { on };
-});
-
-export const setRevealMinutes = action("settings.write", z.object({ minutes: z.number().int().min(1).max(15) }), async ({ minutes }, { ctx, tx, audit }) => {
-  const before = await getSetting("reveal.minutes", tx);
-  await setSetting(tx, "reveal.minutes", minutes, ctx.userId);
-  await audit({ action: "SETTING_CHANGE", entity: "Setting", entityId: "reveal.minutes", summary: `Reveal expiry set to ${minutes} minutes`, before: { minutes: before }, after: { minutes } });
-  revalidatePath("/settings/privacy");
-  return { minutes };
-});
-
-export const setForceMeetingMode = action("meetingMode.toggle", z.object({ userId: id, on: z.boolean() }), async ({ userId, on }, { tx, audit }) => {
-  const u = await tx.user.findFirst({ where: { id: userId } });
-  if (!u) throw new UserError("That account no longer exists.");
-  await tx.user.update({ where: { id: userId }, data: { forceMeetingMode: on } });
-  await audit({ action: "SETTING_CHANGE", entity: "User", entityId: userId, summary: `${on ? "Pinned" : "Unpinned"} meeting mode for ${u.name}` });
-  revalidatePath("/settings/privacy");
-  revalidatePath("/settings/users");
   return { on };
 });
 
@@ -85,20 +67,6 @@ export const saveOrganisation = action(
     for (const [k, val] of pairs) await setSetting(tx, k, val, ctx.userId);
     await audit({ action: "SETTING_CHANGE", entity: "Setting", entityId: "org", summary: "Updated organisation details" });
     revalidatePath("/settings");
-    return { ok: true };
-  },
-);
-
-export const saveDocumentSettings = action(
-  "settings.write",
-  documentSettingsSchema,
-  async (v, { ctx, tx, audit }) => {
-    const before = await getSetting("documents.required", tx);
-    await setSetting(tx, "documents.required", v.required, ctx.userId);
-    await setSetting(tx, "documents.maxFileMb", v.maxFileMb, ctx.userId);
-    await setSetting(tx, "documents.maxFilesPerCase", v.maxFilesPerCase, ctx.userId);
-    await audit({ action: "SETTING_CHANGE", entity: "Setting", entityId: "documents", summary: "Updated document rules", before: { required: before }, after: v });
-    revalidatePath("/settings/documents");
     return { ok: true };
   },
 );

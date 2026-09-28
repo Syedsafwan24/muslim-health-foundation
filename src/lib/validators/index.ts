@@ -279,13 +279,6 @@ export const userSchema = z.object({
   adminPassword: z.string().min(1, "Enter your own password to confirm"),
 });
 
-export const CHECKLIST_KEYS = ["GOVT_ID", "HOSPITAL_BILL", "HOSPITAL_LETTER", "MHF_APPLICATION_FORM", "AUTHORISATION_FORM"] as const;
-export type ChecklistKey = (typeof CHECKLIST_KEYS)[number];
-export const documentSettingsSchema = z.object({
-  required: z.array(z.enum(CHECKLIST_KEYS)),
-  maxFileMb: z.number().int().min(1).max(15),
-  maxFilesPerCase: z.number().int().min(5).max(40),
-});
 
 // ─────────────────────────── required on the paper form ───────────────────────────
 

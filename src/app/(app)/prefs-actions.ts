@@ -19,16 +19,6 @@ export async function setFiscalYear(fy: string) {
   revalidatePath("/", "layout");
 }
 
-export async function setDensity(density: "comfortable" | "compact") {
-  (await cookies()).set("density", density === "compact" ? "compact" : "comfortable", { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
-  revalidatePath("/", "layout");
-}
-
-export async function setTheme(theme: "light" | "dark" | "system") {
-  (await cookies()).set("theme", ["light", "dark", "system"].includes(theme) ? theme : "system", { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
-  revalidatePath("/", "layout");
-}
-
 export async function signOutAction() {
   try {
     const s = await getSignedIn();

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3, Banknote, Building2, ClipboardList, FileText, HandCoins, KeyRound, LayoutDashboard, LogOut, Receipt,
-  Settings, Stethoscope, UserRound, Users, Vault,
+  Settings, Stethoscope, UserRound, Users, Vault, History,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarMenu,
@@ -19,7 +19,7 @@ export type NavGroup = { label?: string; items: NavItem[] };
 const ICONS = {
   dashboard: LayoutDashboard, applications: ClipboardList, patients: UserRound, applicants: Users, payments: Banknote,
   donations: HandCoins, expenses: Receipt, funds: Vault, hospitals: Building2, diseases: Stethoscope,
-  reports: BarChart3, settings: Settings, file: FileText, password: KeyRound,
+  reports: BarChart3, settings: Settings, file: FileText, password: KeyRound, activity: History,
 };
 
 export function AppSidebar({ groups, footer, user }: { groups: NavGroup[]; footer: NavItem[]; user: { name: string; role: string } }) {

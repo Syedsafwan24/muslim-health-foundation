@@ -7,12 +7,12 @@ import { listAudit, masterOptions } from "@/lib/db/queries/admin";
 import { readParams, type SearchParams } from "@/lib/params";
 import { fmtDateTime } from "@/lib/fy";
 import { AUDIT_ACTION, options } from "@/lib/labels";
-import { EmptyState, Pill } from "@/components/app/bits";
+import { EmptyState, Pill, PageHeader } from "@/components/app/bits";
 import { DataTable } from "@/components/app/data-table";
 import { FilterBar } from "@/components/app/filter-bar";
 import { Button } from "@/components/ui/button";
 
-export const metadata: Metadata = { title: "Audit log" };
+export const metadata: Metadata = { title: "Activity log" };
 
 export default async function AuditPage({ searchParams }: { searchParams: SearchParams }) {
   const ctx = await requirePage("audit.read");
@@ -31,8 +31,8 @@ export default async function AuditPage({ searchParams }: { searchParams: Search
   ]);
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-ui text-slate-body">Append-only. Nothing here can be edited or deleted.</p>
+      <PageHeader title="Activity log" meta={<>Who did what, and when. Nothing here can be edited or deleted.</>} />
+      <div className="flex items-center justify-end">
         {can(ctx, "audit.export") && <Button variant="outline" asChild><a href="/api/export/audit?format=xlsx" download>Export to Excel</a></Button>}
       </div>
       <FilterBar

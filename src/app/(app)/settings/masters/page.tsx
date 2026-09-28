@@ -6,7 +6,7 @@ import { mastersWithUsage } from "@/lib/db/queries/admin";
 import { SheetPanel } from "@/components/app/bits";
 import { MasterRow } from "../settings-forms";
 
-export const metadata: Metadata = { title: "Masters" };
+export const metadata: Metadata = { title: "Lists" };
 
 export default async function MastersSettings() {
   const ctx = await requirePage("settings.read");
