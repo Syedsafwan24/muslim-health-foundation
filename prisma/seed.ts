@@ -343,6 +343,15 @@ async function main() {
     }
   }
 
+  // fiscal years: every year that has seeded records, plus the current one, started and open
+  const fyCodes = [...new Set([...Object.keys(caseSerial), ...Object.keys(voucherSerial), ...Object.keys(receiptSerial), fyOf(new Date())])].sort();
+  await prisma.fiscalYear.createMany({
+    data: fyCodes.map((code) => {
+      const y = Number(code.slice(0, 4));
+      return { code, startsOn: fromZonedTime(`${y}-04-01T00:00:00`, TZ), endsOn: fromZonedTime(`${y + 1}-04-01T00:00:00`, TZ), openedById: admin.id };
+    }),
+  });
+
   // counters so the next generated numbers follow the seeded ones
   const counters: Prisma.CounterCreateManyInput[] = [
     { id: "person", value: personSerial },

@@ -5,7 +5,8 @@ import { getViewContext } from "@/lib/auth/context";
 import { can } from "@/lib/auth/permissions";
 import { canViewReport, cellText, fyPeriod, REPORTS, runReport, type ReportKey } from "@/lib/db/queries/reports";
 import { readParams, type SearchParams } from "@/lib/params";
-import { fmtDate, recentFiscalYears } from "@/lib/fy";
+import { fmtDate } from "@/lib/fy";
+import { listFiscalYears } from "@/lib/db/queries/fiscal-years";
 import { cn } from "@/lib/utils";
 import { EmptyState, PageHeader, SheetPanel } from "@/components/app/bits";
 import { FilterBar } from "@/components/app/filter-bar";
@@ -55,7 +56,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
         <div className="min-w-0 space-y-6">
           <p className="text-ui text-slate-body">{REPORTS[key].blurb}</p>
           <FilterBar filters={[
-            { name: "fy", label: "Fiscal year", type: "select", options: recentFiscalYears(6).map((y) => ({ value: y, label: y })) },
+            { name: "fy", label: "Fiscal year", type: "select", options: (await listFiscalYears()).map((y) => ({ value: y.code, label: y.code })) },
             { name: "from", label: "Or from", type: "date" },
             { name: "to", label: "To", type: "date" },
           ]} />

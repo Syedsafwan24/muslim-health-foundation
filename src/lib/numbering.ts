@@ -1,3 +1,4 @@
+import { UserError } from "@/lib/action";
 import { nextCounter, type Tx } from "@/lib/db";
 
 // FY-scoped serials, generated inside the caller's transaction via the row-locked Counter.
@@ -6,17 +7,31 @@ const pad = (n: number, w: number) => String(n).padStart(w, "0");
 
 export const formatCaseNo = (fy: string, n: number) => `MHF/${fy}/${pad(n, 5)}`;
 
+/**
+ * Every FY-numbered record (case, voucher, receipt, expense) passes here, so this is where a
+ * year that has not been started, or has been closed, stops new entries.
+ */
+export async function assertFiscalYearOpen(tx: Tx, fy: string) {
+  const row = await tx.fiscalYear.findFirst({ where: { code: fy } });
+  if (!row) throw new UserError(`FY ${fy} has not been started. Ask the super admin to start it in Settings → Fiscal years.`);
+  if (row.status === "CLOSED") throw new UserError(`FY ${fy} is closed, so nothing new can be recorded in it. Ask the super admin to reopen it if this entry belongs there.`);
+}
+
 export async function nextCaseNo(tx: Tx, fy: string) {
+  await assertFiscalYearOpen(tx, fy);
   const serial = await nextCounter(tx, `case:${fy}`);
   return { serial, caseNo: formatCaseNo(fy, serial) };
 }
 export async function nextVoucherNo(tx: Tx, fy: string) {
+  await assertFiscalYearOpen(tx, fy);
   return `V/${fy}/${pad(await nextCounter(tx, `voucher:${fy}`), 5)}`;
 }
 export async function nextReceiptNo(tx: Tx, fy: string) {
+  await assertFiscalYearOpen(tx, fy);
   return `R/${fy}/${pad(await nextCounter(tx, `receipt:${fy}`), 5)}`;
 }
 export async function nextExpenseNo(tx: Tx, fy: string) {
+  await assertFiscalYearOpen(tx, fy);
   return `E/${fy}/${pad(await nextCounter(tx, `expense:${fy}`), 5)}`;
 }
 export async function nextPersonCode(tx: Tx) {

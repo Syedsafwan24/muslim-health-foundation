@@ -7,7 +7,7 @@ import type { Tx } from "@/lib/db";
 import { diff } from "@/lib/audit";
 import { formatINR } from "@/lib/money";
 import { fromDateInput, getFiscalYear } from "@/lib/fy";
-import { nextDonorCode, nextReceiptNo } from "@/lib/numbering";
+import { assertFiscalYearOpen, nextDonorCode, nextReceiptNo } from "@/lib/numbering";
 import { donationSchema, donorSchema, id, reasonSchema } from "@/lib/validators";
 import { fundBalance } from "@/lib/db/queries/funds";
 import { lockFund } from "@/lib/db/writes";
@@ -71,6 +71,9 @@ export const saveDonation = action("donations.write", donationSchema, async (inp
     if (!before) throw new UserError("That donation no longer exists.");
     if (before.cancelledAt) throw new UserError(`Receipt ${before.receiptNo} is cancelled and cannot be edited.`);
     if (before.isReceiptIssued) throw new UserError(`Receipt ${before.receiptNo} has been issued. Cancel it and record the donation again.`);
+    // Both the year it was in and the year it moves to must be open.
+    await assertFiscalYearOpen(tx, getFiscalYear(before.donationDate));
+    await assertFiscalYearOpen(tx, getFiscalYear(data.donationDate));
     await lockFund(tx, before.fundId);
     await tx.donation.update({ where: { id: input.id }, data });
     await assertNotOverdrawn(tx, before.fundId);

@@ -651,3 +651,25 @@ model RevealGrant {
 
   @@index([userId, applicationId, expiresAt])
 }
+
+// Fiscal years are started and closed by the super admin (Settings → Fiscal years). Dates are
+// always 1 April – 31 March IST (CLAUDE.md rule 8). New case, voucher, receipt and expense
+// numbers are only issued for a year that has been started and is not closed.
+enum FiscalYearStatus {
+  OPEN
+  CLOSED
+}
+
+model FiscalYear {
+  id          String           @id @default(cuid())
+  code        String           @unique              // "2026-27"
+  startsOn    DateTime                              // 1 April, IST midnight
+  endsOn      DateTime                              // next 1 April, exclusive
+  status      FiscalYearStatus @default(OPEN)
+  openedById  String?
+  openedAt    DateTime         @default(now())
+  closedById  String?
+  closedAt    DateTime?
+  closeNote   String?
+  deletedAt   DateTime?
+}

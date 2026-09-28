@@ -5,7 +5,8 @@ import { forbidden, redirect } from "next/navigation";
 import { can, type Capability } from "./permissions";
 import { prisma } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
-import { getFiscalYear, isFiscalYear } from "@/lib/fy";
+import { getFiscalYear } from "@/lib/fy";
+import { defaultFiscalYear, listFiscalYears } from "@/lib/db/queries/fiscal-years";
 import type { ViewContext } from "@/lib/redact";
 import { auth } from "./index";
 
@@ -33,7 +34,9 @@ const loadSession = cache(async (): Promise<SignedIn | null> => {
   // (Tokens minted before this field existed carry none and count as 0, the column default.)
   if (((session.user as { sessionVersion?: number }).sessionVersion ?? 0) !== user.sessionVersion) return null;
   const global = await getSetting("meetingMode.global");
-  const fyCookie = (await cookies()).get("fy")?.value; // display preference only
+  // The year shown is a display preference, but only a year the super admin has started.
+  const fyCookie = (await cookies()).get("fy")?.value;
+  const years = (await listFiscalYears()).map((y) => y.code);
   return {
     mustChangePassword: user.mustChangePassword,
     ctx: {
@@ -42,7 +45,7 @@ const loadSession = cache(async (): Promise<SignedIn | null> => {
       role: user.role,
       meetingMode: resolveMeetingMode({ global, forceMeetingMode: user.forceMeetingMode }),
       globalMeetingMode: global,
-      fy: isFiscalYear(fyCookie) ? fyCookie : getFiscalYear(),
+      fy: fyCookie && years.includes(fyCookie) ? fyCookie : defaultFiscalYear(years) ?? getFiscalYear(),
     },
   };
 });

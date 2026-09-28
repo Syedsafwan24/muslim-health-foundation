@@ -26,13 +26,6 @@ export function previousFiscalYear(fy: string): string {
   return `${y}-${String((y + 1) % 100).padStart(2, "0")}`;
 }
 
-/** The last `n` fiscal years, newest first. */
-export function recentFiscalYears(n = 5, from = new Date()): string[] {
-  const out = [getFiscalYear(from)];
-  while (out.length < n) out.push(previousFiscalYear(out[out.length - 1]));
-  return out;
-}
-
 export function isFiscalYear(v: unknown): v is string {
   return typeof v === "string" && /^\d{4}-\d{2}$/.test(v);
 }

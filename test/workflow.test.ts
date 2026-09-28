@@ -16,6 +16,7 @@ const apps = await import("@/app/(app)/applications/actions");
 const pays = await import("@/app/(app)/payments/actions");
 const dons = await import("@/app/(app)/donations/actions");
 const exps = await import("@/app/(app)/expenses/actions");
+const fys = await import("@/app/(app)/settings/fiscal-years/actions");
 const { fundBalance } = await import("@/lib/db/queries/funds");
 const { toDateInput } = await import("@/lib/fy");
 
@@ -208,5 +209,45 @@ describe("money in and running costs", () => {
     const r = await dons.saveDonor({ name: "Nope", type: "INDIVIDUAL", isAnonymous: false });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toMatch(/permission/);
+  });
+});
+
+describe("fiscal years", () => {
+  // A far-past year so closing it cannot disturb the other suites writing into the current year.
+  const OLD = "1990-91";
+  beforeAll(async () => {
+    await prisma.fiscalYear.upsert({
+      where: { code: OLD },
+      create: { code: OLD, startsOn: new Date("1990-03-31T18:30:00Z"), endsOn: new Date("1991-03-31T18:30:00Z") },
+      update: { status: "OPEN", closedAt: null, closedById: null },
+    });
+  });
+
+  it("refuses entries in a year that has not been started", async () => {
+    await as("ACCOUNTANT");
+    const donor = ok(await dons.saveDonor({ name: `FY donor ${stamp}`, type: "INDIVIDUAL", isAnonymous: false }));
+    const r = await dons.saveDonation({ donorId: donor.id, fundId: zakatId, amountPaise: 100000n, donationDate: "1985-06-01", mode: "CASH" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/FY 1985-86 has not been started/);
+  });
+
+  it("lets the super admin close and reopen a year, and a closed year takes no entries", async () => {
+    await as("SUPER_ADMIN");
+    ok(await fys.closeFiscalYear({ code: OLD, password: "x", note: "Audited" }));
+    expect((await prisma.fiscalYear.findUniqueOrThrow({ where: { code: OLD } })).status).toBe("CLOSED");
+
+    await as("ACCOUNTANT");
+    const donor = ok(await dons.saveDonor({ name: `Closed FY donor ${stamp}`, type: "INDIVIDUAL", isAnonymous: false }));
+    const refused = await dons.saveDonation({ donorId: donor.id, fundId: zakatId, amountPaise: 100000n, donationDate: "1990-06-01", mode: "CASH" });
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) expect(refused.error).toMatch(/FY 1990-91 is closed/);
+    // Only the super admin manages years.
+    expect((await fys.reopenFiscalYear({ code: OLD, password: "x", reason: "Late receipt found" })).ok).toBe(false);
+
+    await as("SUPER_ADMIN");
+    ok(await fys.reopenFiscalYear({ code: OLD, password: "x", reason: "Late receipt found" }));
+    await as("ACCOUNTANT");
+    const d = ok(await dons.saveDonation({ donorId: donor.id, fundId: zakatId, amountPaise: 100000n, donationDate: "1990-06-01", mode: "CASH" }));
+    expect(d.receiptNo).toMatch(/^R\/1990-91\//);
   });
 });

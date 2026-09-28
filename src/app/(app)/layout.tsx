@@ -5,7 +5,7 @@ import { AppSidebar, type NavGroup, type NavItem } from "@/components/app/app-si
 import { MeetingModeBanner, Topbar } from "@/components/app/topbar";
 import { getSignedIn } from "@/lib/auth/context";
 import { can, ROLE_LABEL } from "@/lib/auth/permissions";
-import { recentFiscalYears } from "@/lib/fy";
+import { listFiscalYears } from "@/lib/db/queries/fiscal-years";
 import { shellCounts } from "@/lib/db/queries/admin";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -56,7 +56,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <SidebarProvider defaultOpen={sidebarOpen} style={{ "--sidebar-width": "16.5rem", "--sidebar-width-icon": "4.25rem" } as React.CSSProperties}>
       <AppSidebar groups={groups} footer={footer} user={{ name: ctx.name, role: ROLE_LABEL[ctx.role] }} />
       <SidebarInset className="min-w-0 bg-paper">
-        <Topbar fy={ctx.fy} years={recentFiscalYears(5)} canToggleMeetingMode={can(ctx, "meetingMode.toggle")} globalMeetingMode={ctx.globalMeetingMode} notices={counts.notices} />
+        <Topbar fy={ctx.fy} years={(await listFiscalYears()).map((y) => y.code)} canToggleMeetingMode={can(ctx, "meetingMode.toggle")} globalMeetingMode={ctx.globalMeetingMode} notices={counts.notices} />
         {bannerReason && <MeetingModeBanner reason={bannerReason} />}
         <main id="main" className="mx-auto w-full max-w-[1440px] px-6 py-6 lg:px-8">{children}</main>
       </SidebarInset>

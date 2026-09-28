@@ -12,6 +12,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
     can(ctx, "users.manage") && { href: "/settings/users", label: "Users and roles" },
     can(ctx, "funds.read") && { href: "/funds", label: "Funds" },
     all && { href: "/settings/masters", label: "Masters" },
+    all && { href: "/settings/fiscal-years", label: "Fiscal years" },
     all && { href: "/settings/numbering", label: "Numbering" },
     all && { href: "/settings/documents", label: "Documents" },
     all && { href: "/settings/backup", label: "Backup and data" },
