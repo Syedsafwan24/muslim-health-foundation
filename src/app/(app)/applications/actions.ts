@@ -5,7 +5,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { action, UserError } from "@/lib/action";
 import { includeDeleted } from "@/lib/db";
-import { assertPermission, can } from "@/lib/auth/permissions";
+import { assertPermission, can, ForbiddenError } from "@/lib/auth/permissions";
 import { requireViewContext } from "@/lib/auth/context";
 import { verifyPassword } from "@/lib/auth";
 import { diff } from "@/lib/audit";
@@ -259,7 +259,8 @@ export const addDiseaseCategory = action("applications.write", z.object({ name: 
 });
 
 /** "+ Add new bank" from the payment step. Bank names are unique, so a removed bank is brought back. */
-export const addBank = action("applications.write", z.object({ name: z.string().trim().min(2, "Enter the bank name").max(120), branch: z.string().trim().max(120) }), async ({ name, branch }, { tx, audit }) => {
+export const addBank = action("applications.read", z.object({ name: z.string().trim().min(2, "Enter the bank name").max(120), branch: z.string().trim().max(120) }), async ({ name, branch }, { ctx, tx, audit }) => {
+  if (!can(ctx, "applications.write") && !can(ctx, "payments.write")) throw new ForbiddenError();
   const label = (b: { name: string; branch: string | null }) => (b.branch ? `${b.name}, ${b.branch}` : b.name);
   const existing = await tx.bank.findFirst({ where: { name: { equals: name, mode: "insensitive" }, ...includeDeleted } });
   if (existing?.deletedAt) {

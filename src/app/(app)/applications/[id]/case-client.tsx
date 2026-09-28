@@ -18,6 +18,7 @@ import { paymentSchema, type PaymentInput } from "@/lib/validators";
 import type { ActionResult } from "@/lib/action";
 import { deleteDraft, endReveal, revealIdentity } from "../actions";
 import { deleteAttachment, uploadAttachments, verifyAttachment } from "../attachment-actions";
+import { useAddDialog } from "../add-dialog";
 import { cancelPayment, markBounced, markCleared, markIssued, recordPayment } from "@/app/(app)/payments/actions";
 
 /** Run an action, toast the outcome, refresh the page. */
@@ -289,6 +290,9 @@ export function PaymentForm({ applicationId, remainingPaise, funds, banks, hospi
   defaultHospitalId: string | null;
 }) {
   const { pending, run } = useRun();
+  // Banks added here ("+ Add new bank") stay in the list without a reload.
+  const [bankList, setBankList] = useState(banks);
+  const addNew = useAddDialog([], (kind, item) => { if (kind === "bank") setBankList((l) => [...l, { ...item, isOwnAccount: false }]); });
   const form = useForm<PaymentInput>({
     resolver: zodResolver(paymentSchema),
     defaultValues: {
@@ -304,6 +308,7 @@ export function PaymentForm({ applicationId, remainingPaise, funds, banks, hospi
   const over = typeof amount === "bigint" && amount > remainingPaise;
 
   return (
+    <>
     <form
       noValidate
       onSubmit={handleSubmit((v) =>
@@ -318,7 +323,7 @@ export function PaymentForm({ applicationId, remainingPaise, funds, banks, hospi
         <Controller control={control} name="amountPaise" render={({ field }) => <MoneyInput id="pay-amount" value={field.value as bigint} onChange={(v) => field.onChange(v ?? 0n)} invalid={!!errors.amountPaise} />} />
       </FormField>
       <FormField id="pay-bank" label="Bank" error={errors.bankId?.message} required={mode === "CHEQUE"}>
-        <Select id="pay-bank" {...register("bankId")} options={banks.map((b) => ({ value: b.id, label: b.label }))} placeholder="Choose the bank" invalid={!!errors.bankId} />
+        <Select id="pay-bank" {...register("bankId")} options={bankList.map((b) => ({ value: b.id, label: b.label }))} placeholder="Choose the bank" invalid={!!errors.bankId} onCreate={addNew.ask("bank")} createLabel={(t) => (t ? `Add new bank “${t}”` : "Add new bank")} />
       </FormField>
       <FormField id="pay-date" label="Payment date" error={errors.paymentDate?.message} required>
         <TextInput id="pay-date" type="date" {...register("paymentDate")} />
@@ -352,6 +357,8 @@ export function PaymentForm({ applicationId, remainingPaise, funds, banks, hospi
         <Button type="submit" disabled={pending}>Record payment</Button>
       </div>
     </form>
+    {addNew.dialog}
+    </>
   );
 }
 
