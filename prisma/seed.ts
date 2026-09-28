@@ -123,7 +123,7 @@ async function main() {
   const zakat = await prisma.fund.create({
     data: { name: "Zakat", type: "ZAKAT", isRestricted: true, allowsExpenses: false, openingBalancePaise: rupees(850000) },
   });
-  await prisma.fund.create({
+  const general = await prisma.fund.create({
     data: { name: "General", type: "GENERAL", isRestricted: false, allowsExpenses: true, openingBalancePaise: rupees(250000) },
   });
 
@@ -366,6 +366,26 @@ async function main() {
   ];
   await prisma.counter.createMany({ data: counters });
   await prisma.setting.create({ data: { key: "meetingMode.global", value: false, updatedById: admin.id } });
+
+  // Opening balances are reconciled last, against the flows actually generated above. The cases
+  // pay out considerably more than the donations bring in, so a fixed opening figure left the
+  // restricted Zakat fund tens of lakhs overdrawn: nonsense on a trust's dashboard, and a state
+  // the app rightly refuses to record further payments against. Deriving the figure keeps the
+  // demo solvent however the random amounts fall, instead of drifting out of date again.
+  const CLOSING_RESERVE = rupees(1200000);
+  for (const fund of [zakat, general]) {
+    const [don, pay, exp] = await Promise.all([
+      prisma.donation.aggregate({ where: { fundId: fund.id, cancelledAt: null, deletedAt: null }, _sum: { amountPaise: true } }),
+      // Same filter as fundBalance(): cancelled and bounced cheques never left the fund.
+      prisma.payment.aggregate({ where: { fundId: fund.id, status: { notIn: ["CANCELLED", "BOUNCED"] }, deletedAt: null }, _sum: { amountPaise: true } }),
+      prisma.expense.aggregate({ where: { fundId: fund.id, deletedAt: null }, _sum: { amountPaise: true } }),
+    ]);
+    const net = (don._sum.amountPaise ?? 0n) - (pay._sum.amountPaise ?? 0n) - (exp._sum.amountPaise ?? 0n);
+    const opening = net < 0n ? -net + CLOSING_RESERVE : fund.openingBalancePaise;
+    if (opening !== fund.openingBalancePaise) {
+      await prisma.fund.update({ where: { id: fund.id }, data: { openingBalancePaise: opening } });
+    }
+  }
 
   console.log(`Seeded ${plan.length} cases, ${people.length} people, ${donationDates.length} donations. Password for every demo user: ${production ? "SEED_ADMIN_PASSWORD (change required at first sign-in)" : "Mhf@2026!"}`);
 }
