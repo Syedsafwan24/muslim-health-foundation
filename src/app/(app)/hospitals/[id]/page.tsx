@@ -9,6 +9,7 @@ import { readParams, type SearchParams } from "@/lib/params";
 import { Field, PageHeader, Pill, SheetPanel } from "@/components/app/bits";
 import { BreakdownView } from "@/components/app/breakdown-view";
 import { ExportButton } from "@/components/app/export-button";
+import { DeleteButton } from "@/components/app/delete-button";
 import { HospitalDialog } from "../hospital-dialog";
 
 export const metadata: Metadata = { title: "Hospital" };
@@ -34,6 +35,7 @@ export default async function HospitalPage({ params, searchParams }: { params: P
             discountNote: h.discountNote ?? "", bankName: h.bankName ?? "", bankAccountLast4: h.bankAccountLast4 ?? "", isActive: h.isActive, notes: h.notes ?? "",
           }} />
           )}
+          {can(ctx, "records.delete") && <DeleteButton kind="hospital" id={id} name={h.name} backTo="/hospitals" />}
         </>}
       />
       <SheetPanel title="Hospital details" className="mb-6">

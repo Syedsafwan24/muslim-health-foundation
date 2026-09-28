@@ -42,6 +42,8 @@ export const CAPABILITIES = {
   "audit.export": [SA],
   "identity.reveal": [SA],
   "meetingMode.toggle": [SA],
+  /** Delete a case, person or hospital entered by mistake (hidden, audited, only when unused). */
+  "records.delete": [SA],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

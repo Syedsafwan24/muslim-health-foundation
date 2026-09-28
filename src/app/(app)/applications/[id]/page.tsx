@@ -16,6 +16,7 @@ import {
 import { EDITABLE, PAYABLE, STATUS_LABEL } from "@/lib/applications/transitions";
 import type { PersonView } from "@/lib/redact";
 import { AliasChip, Field, MoneyText, PageHeader, PaymentStatusBadge, Pill, SheetPanel, StatusBadge } from "@/components/app/bits";
+import { DeleteButton } from "@/components/app/delete-button";
 import { Button } from "@/components/ui/button";
 import { readParams, type SearchParams } from "@/lib/params";
 import {
@@ -67,6 +68,7 @@ export default async function CasePage({ params, searchParams }: { params: Promi
                 <a href={`/api/export/case-sheet?id=${a.id}`} target="_blank" rel="noopener"><Printer aria-hidden /> Case sheet</a>
               </Button>
             )}
+            {a.status !== "DRAFT" && !a.masked && can(ctx, "records.delete") && <DeleteButton kind="case" id={a.id} name={`case ${a.caseNo}`} backTo="/applications" />}
           </>
         }
       />

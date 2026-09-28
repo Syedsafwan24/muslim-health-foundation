@@ -17,6 +17,8 @@ const pays = await import("@/app/(app)/payments/actions");
 const dons = await import("@/app/(app)/donations/actions");
 const exps = await import("@/app/(app)/expenses/actions");
 const fys = await import("@/app/(app)/settings/fiscal-years/actions");
+const del = await import("@/app/(app)/delete-actions");
+const { listApplications } = await import("@/lib/db/queries/applications");
 const { fundBalance } = await import("@/lib/db/queries/funds");
 const { toDateInput } = await import("@/lib/fy");
 
@@ -163,6 +165,44 @@ describe("an approved case from entry to paid", () => {
     expect(results.filter((r) => r.ok)).toHaveLength(1);
     const paid = await prisma.payment.aggregate({ where: { applicationId: appId, status: { notIn: ["CANCELLED", "BOUNCED"] } }, _sum: { amountPaise: true } });
     expect(paid._sum.amountPaise).toBe(4000000n);
+  });
+
+  it("lets the super admin delete a mistaken case only once its payments are cancelled", async () => {
+    await as("OPERATOR");
+    const form = paper(`Delete Me ${stamp}`, 200000n);
+    const d = ok(await apps.saveApplication(form));
+    await attachRequired(d.id);
+    ok(await apps.submitApplication({ id: d.id, payment: null }));
+    const a = await prisma.application.findUniqueOrThrow({ where: { id: d.id } });
+
+    // Only the super admin may delete.
+    expect((await del.deleteCase({ id: d.id, reason: "Entered twice by mistake", password: "x" })).ok).toBe(false);
+
+    await as("ACCOUNTANT");
+    const bankId = (await prisma.bank.findFirstOrThrow({ where: { isOwnAccount: true } })).id;
+    const p = ok(await pays.recordPayment({ applicationId: d.id, amountPaise: 200000n, mode: "CHEQUE", chequeNo: `D${stamp}`.slice(0, 12), bankId, paymentDate: toDateInput(new Date()), towards: "HOSPITAL_BILL", hospitalId, fundId: zakatId }));
+
+    await as("SUPER_ADMIN");
+    const blocked = await del.deleteCase({ id: d.id, reason: "Entered twice by mistake", password: "x" });
+    expect(blocked.ok).toBe(false);
+    if (!blocked.ok) expect(blocked.error).toMatch(/has payments/);
+    // The person is on a case, and the hospital is in use: both refused.
+    const person = await del.deletePerson({ id: a.applicantId, reason: "Entered twice by mistake", password: "x" });
+    expect(person.ok).toBe(false);
+    if (!person.ok) expect(person.error).toMatch(/is on 1 case/);
+    expect((await del.deleteHospital({ id: hospitalId, reason: "Entered by mistake", password: "x" })).ok).toBe(false);
+
+    await as("ACCOUNTANT");
+    ok(await pays.cancelPayment({ id: p.id, reason: "wrong case entirely" }));
+    await as("SUPER_ADMIN");
+    ok(await del.deleteCase({ id: d.id, reason: "Entered twice by mistake", password: "x" }));
+    const ctx = { userId: "", name: "", role: "SUPER_ADMIN" as const, meetingMode: false, globalMeetingMode: false, fy: a.fiscalYear };
+    const list = await listApplications(ctx, { q: a.caseNo });
+    expect(list.rows.find((r) => r.id === d.id)).toBeUndefined();
+    const logged = await prisma.auditLog.findFirst({ where: { entityId: d.id, action: "DELETE" } });
+    expect(logged?.reason).toBe("Entered twice by mistake");
+    // With the case gone the person is no longer in use and can be deleted too.
+    ok(await del.deletePerson({ id: a.applicantId, reason: "Entered twice by mistake", password: "x" }));
   });
 
   it("lets only the general secretary change the approved amount of a recorded case", async () => {

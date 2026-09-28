@@ -11,6 +11,7 @@ import { formatINR } from "@/lib/money";
 import { GENDER, ID_TYPE, MARITAL } from "@/lib/labels";
 import { AliasChip, Field, MoneyText, PageHeader, SheetPanel, StatCard, StatusBadge } from "@/components/app/bits";
 import { PersonTools } from "./person-tools";
+import { DeleteButton } from "@/components/app/delete-button";
 
 export const metadata: Metadata = { title: "Person" };
 
@@ -56,8 +57,11 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
         back={{ href: "/patients", label: "Patients" }}
         title={p.isRedacted ? <AliasChip code={p.personCode} className="text-h2" /> : p.fullName}
         meta={<><span className="font-mono">{p.personCode}</span>{!p.isRedacted && p.isDeceased && <span>· Deceased</span>}</>}
-        actions={!p.isRedacted && (can(ctx, "people.write") || can(ctx, "people.merge")) ? (
-          <PersonTools person={p} areas={areas} canEdit={can(ctx, "people.write")} canMerge={can(ctx, "people.merge")} />
+        actions={!p.isRedacted ? (
+          <>
+            {(can(ctx, "people.write") || can(ctx, "people.merge")) && <PersonTools person={p} areas={areas} canEdit={can(ctx, "people.write")} canMerge={can(ctx, "people.merge")} />}
+            {can(ctx, "records.delete") && <DeleteButton kind="person" id={p.id} name={p.personCode} backTo="/patients" />}
+          </>
         ) : undefined}
       />
       {p.watchFlag && (
