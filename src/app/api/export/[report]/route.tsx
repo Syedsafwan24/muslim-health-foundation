@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { requireViewContext } from "@/lib/auth/context";
 import { can } from "@/lib/auth/permissions";
 import { getSettings } from "@/lib/settings";
-import { fmtDate, fmtDateTime, fromDateInput, getFiscalYear, isFiscalYear, fyRange } from "@/lib/fy";
+import { fmtDate, fmtDateTime, fromDateInput, isFiscalYear } from "@/lib/fy";
+import { fyBounds } from "@/lib/fy/db";
 import { amountInWords, formatINR } from "@/lib/money";
 import {
   GENDER, MARITAL, PAYEE_TYPE, PAYMENT_MODE, PAYMENT_STATUS, RELATION, TOWARDS, AUDIT_ACTION,
@@ -149,8 +150,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ report: 
       if (!can(ctx, "donations.read") || !can(ctx, "reports.export")) return deny("Not available to your role.");
       const d = await getDonor(ctx, id);
       if (!d) return deny("Not found.", 404);
-      const fy = isFiscalYear(q("fy")) ? q("fy")! : getFiscalYear();
-      const { start, end } = fyRange(fy);
+      const fy = isFiscalYear(q("fy")) ? q("fy")! : ctx.fy;
+      const { start, end } = await fyBounds(fy);
       const rows = d.donations.filter((x) => !x.cancelled && x.donationDate >= start && x.donationDate < end);
       const total = rows.reduce((s, x) => s + x.amountPaise, 0n);
       const buf = await toPdf(
@@ -226,12 +227,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ report: 
   if (!(report in REPORTS)) return deny("Unknown export.", 404);
   const key = report as ReportKey;
   if (!canViewReport(ctx, key) || !can(ctx, "reports.export")) return deny("Your role can view reports but not export them.");
-  const fy = isFiscalYear(q("fy")) ? q("fy")! : getFiscalYear();
+  const fy = isFiscalYear(q("fy")) ? q("fy")! : ctx.fy;
   const from = q("from");
   const to = q("to");
   const period = from && to && /^\d{4}-\d{2}-\d{2}$/.test(from) && /^\d{4}-\d{2}-\d{2}$/.test(to)
     ? { from: fromDateInput(from), to: new Date(fromDateInput(to).getTime() + 864e5), label: `${from} to ${to}` }
-    : fyPeriod(fy);
+    : await fyPeriod(fy);
   const wantUnredacted = q("unredacted") === "1";
   if (wantUnredacted && !can(ctx, "reports.exportUnredacted")) return deny("Only the super admin can export an unredacted beneficiary list.");
   const result = await runReport(ctx, key, period, { unredacted: wantUnredacted });

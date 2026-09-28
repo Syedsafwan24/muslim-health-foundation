@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { requirePage } from "@/lib/auth/context";
 import { can } from "@/lib/auth/permissions";
 import { fiscalYearOverview } from "@/lib/db/queries/fiscal-years";
-import { fmtDate } from "@/lib/fy";
+import { fmtDate, toDateInput } from "@/lib/fy";
+import { suggestNextYear } from "@/lib/fy/db";
 import { Pill, SheetPanel } from "@/components/app/bits";
-import { CloseYear, ReopenYear, StartYear } from "./fiscal-year-forms";
+import { CloseYear, EditYearDates, ReopenYear, StartYear } from "./fiscal-year-forms";
 
 export const metadata: Metadata = { title: "Fiscal years" };
 
@@ -12,15 +13,16 @@ export default async function FiscalYearsSettings() {
   const ctx = await requirePage("settings.read");
   const canWrite = can(ctx, "settings.write");
   const years = await fiscalYearOverview();
-  const next = years[0] ? `${Number(years[0].code.slice(0, 4)) + 1}-${String((Number(years[0].code.slice(0, 4)) + 2) % 100).padStart(2, "0")}` : null;
+  const suggestion = await suggestNextYear();
   const th = "px-3 py-2.5 text-label font-medium";
   // The last day shown is 31 March: endsOn is the next 1 April (exclusive).
   const lastDay = (d: Date) => fmtDate(new Date(d.getTime() - 864e5));
+  const lastDayInput = (d: Date) => toDateInput(new Date(d.getTime() - 864e5));
   return (
-    <SheetPanel title="Fiscal years" bodyClassName="p-0" action={canWrite && next ? <StartYear next={next} /> : undefined}>
+    <SheetPanel title="Fiscal years" bodyClassName="p-0" action={canWrite ? <StartYear first={toDateInput(suggestion.start)} last={lastDayInput(suggestion.end)} /> : undefined}>
       <p className="px-5 py-3 text-ui text-slate-body">
-        A fiscal year runs from 1 April to 31 March. Cases, payments, donations and expenses can only be recorded in a year that has been started
-        and is not closed. Case, voucher, receipt and expense numbers restart with each year.
+        The super admin sets each fiscal year&apos;s first and last day. Cases, payments, donations and expenses are placed in the year their date falls in,
+        and can only be recorded in a year that has been started and is not closed. Case, voucher, receipt and expense numbers restart with each year.
       </p>
       <table className="w-full text-ui">
         <caption className="sr-only">Fiscal years</caption>
@@ -52,7 +54,12 @@ export default async function FiscalYearsSettings() {
               </td>
               {canWrite && (
                 <td className="px-3 py-3 text-right">
-                  {y.status === "OPEN" ? <CloseYear code={y.code} drafts={y.drafts} unissued={y.unissued} running={y.endsOn > new Date()} /> : <ReopenYear code={y.code} />}
+                  {y.status === "OPEN" ? (
+                    <div className="flex justify-end gap-2">
+                      <EditYearDates code={y.code} first={toDateInput(y.startsOn)} last={lastDayInput(y.endsOn)} />
+                      <CloseYear code={y.code} drafts={y.drafts} unissued={y.unissued} running={y.endsOn > new Date()} />
+                    </div>
+                  ) : <ReopenYear code={y.code} />}
                 </td>
               )}
             </tr>

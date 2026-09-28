@@ -27,7 +27,7 @@ export function previousFiscalYear(fy: string): string {
 }
 
 export function isFiscalYear(v: unknown): v is string {
-  return typeof v === "string" && /^\d{4}-\d{2}$/.test(v);
+  return typeof v === "string" && /^\d{4}(-\d{2})?$/.test(v);
 }
 
 /** Display helpers — always in IST. */

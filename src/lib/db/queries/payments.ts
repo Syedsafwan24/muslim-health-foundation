@@ -1,7 +1,7 @@
 import "server-only";
 import type { Payment, PaymentMode, PaymentStatus, PaymentTowards, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { fyRange } from "@/lib/fy";
+import { fyBounds } from "@/lib/fy/db";
 import type { ViewContext } from "@/lib/redact";
 import { can } from "@/lib/auth/permissions";
 import { AMOUNT_BANDS, PAYMENT_MODE, PAYMENT_STATUS, type AmountBand } from "@/lib/labels";
@@ -125,7 +125,7 @@ export function paymentFilters(p: Awaited<ReturnType<typeof readParams>>, ctx: V
 export async function listPayments(ctx: ViewContext, f: PaymentFilters) {
   const and: Prisma.PaymentWhereInput[] = [];
   if (f.fy) {
-    const { start, end } = fyRange(f.fy);
+    const { start, end } = await fyBounds(f.fy);
     and.push({ paymentDate: { gte: start, lt: end } });
   }
   if (f.status?.length) and.push({ status: { in: f.status } });

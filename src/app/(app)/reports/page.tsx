@@ -24,7 +24,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
   const fy = p.fy() ?? ctx.fy;
   const from = p.date("from");
   const to = p.dateEnd("to");
-  const period = from && to ? { from, to, label: `${fmtDate(from)} to ${fmtDate(new Date(to.getTime() - 864e5))}` } : fyPeriod(fy);
+  const period = from && to ? { from, to, label: `${fmtDate(from)} to ${fmtDate(new Date(to.getTime() - 864e5))}` } : await fyPeriod(fy);
   const result = await runReport(ctx, key, period);
   const canExport = can(ctx, "reports.export");
   const qs = new URLSearchParams({ fy, ...(p.str("from") ? { from: p.str("from")! } : {}), ...(p.str("to") ? { to: p.str("to")! } : {}) }).toString();

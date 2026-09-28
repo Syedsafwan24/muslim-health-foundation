@@ -1,7 +1,7 @@
 import "server-only";
 import type { FundType } from "@prisma/client";
 import { prisma, type DB, type Tx } from "@/lib/db";
-import { fyRange } from "@/lib/fy";
+import { fyBounds } from "@/lib/fy/db";
 import type { ViewContext } from "@/lib/redact";
 import { LIVE_PAYMENT } from "./shared";
 import { PAYABLE } from "@/lib/applications/transitions";
@@ -36,7 +36,7 @@ export type FundSummary = {
 };
 
 export async function listFunds(ctx: ViewContext, opts: { includeInactive?: boolean } = {}): Promise<FundSummary[]> {
-  const { start, end } = fyRange(ctx.fy);
+  const { start, end } = await fyBounds(ctx.fy);
   const funds = await prisma.fund.findMany({ where: opts.includeInactive ? {} : { isActive: true }, orderBy: { name: "asc" } });
 
   // Approved but not yet paid, across payable cases. Single-fund today, so attributed to each

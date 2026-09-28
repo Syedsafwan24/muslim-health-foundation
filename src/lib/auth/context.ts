@@ -36,7 +36,8 @@ const loadSession = cache(async (): Promise<SignedIn | null> => {
   const global = await getSetting("meetingMode.global");
   // The year shown is a display preference, but only a year the super admin has started.
   const fyCookie = (await cookies()).get("fy")?.value;
-  const years = (await listFiscalYears()).map((y) => y.code);
+  const started = await listFiscalYears();
+  const years = started.map((y) => y.code);
   return {
     mustChangePassword: user.mustChangePassword,
     ctx: {
@@ -45,7 +46,7 @@ const loadSession = cache(async (): Promise<SignedIn | null> => {
       role: user.role,
       meetingMode: resolveMeetingMode({ global, forceMeetingMode: user.forceMeetingMode }),
       globalMeetingMode: global,
-      fy: fyCookie && years.includes(fyCookie) ? fyCookie : defaultFiscalYear(years) ?? getFiscalYear(),
+      fy: fyCookie && years.includes(fyCookie) ? fyCookie : defaultFiscalYear(started) ?? getFiscalYear(),
     },
   };
 });

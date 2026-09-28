@@ -1,19 +1,18 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { getFiscalYear } from "@/lib/fy";
 
 /** Fiscal years the super admin has started, newest first. */
 export async function listFiscalYears() {
-  return prisma.fiscalYear.findMany({ orderBy: { code: "desc" } });
+  return prisma.fiscalYear.findMany({ orderBy: { startsOn: "desc" } });
 }
 
 /**
  * The year to show when the user has not picked one: the started year that contains today,
  * else the newest started year. Returns null only before any year has been started.
  */
-export function defaultFiscalYear(codes: string[]): string | null {
-  const today = getFiscalYear();
-  return codes.includes(today) ? today : codes[0] ?? null;
+export function defaultFiscalYear(years: { code: string; startsOn: Date; endsOn: Date }[]): string | null {
+  const now = new Date();
+  return years.find((y) => y.startsOn <= now && now < y.endsOn)?.code ?? years[0]?.code ?? null;
 }
 
 /** The Fiscal years settings table: each started year with its activity and what is still open in it. */

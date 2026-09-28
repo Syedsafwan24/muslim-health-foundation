@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { FormField, TextArea, TextInput } from "@/components/app/inputs";
 import type { ActionResult } from "@/lib/action";
-import { closeFiscalYear, reopenFiscalYear, startFiscalYear } from "./actions";
+import { closeFiscalYear, reopenFiscalYear, startFiscalYear, updateFiscalYearDates } from "./actions";
 
 /** A confirm dialog that asks for the password again, then runs the action. */
-function Confirm({ trigger, title, description, button, destructive, note, run }: {
+function Confirm({ trigger, title, description, button, destructive, note, dates, run }: {
   trigger: React.ReactNode;
   title: string;
   description: React.ReactNode;
@@ -19,15 +19,19 @@ function Confirm({ trigger, title, description, button, destructive, note, run }
   destructive?: boolean;
   /** Label of the optional (or required) text field, e.g. a reason. */
   note?: { label: string; required?: boolean };
-  run: (password: string, note: string) => Promise<ActionResult<{ code: string }>>;
+  /** First and last day fields (yyyy-MM-dd), pre-filled. */
+  dates?: { first: string; last: string };
+  run: (password: string, note: string, dates: { first: string; last: string }) => Promise<ActionResult<{ code: string }>>;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [text, setText] = useState("");
+  const [first, setFirst] = useState(dates?.first ?? "");
+  const [last, setLast] = useState(dates?.last ?? "");
   const [pending, start] = useTransition();
   const submit = () => start(async () => {
-    const r = await run(password, text);
+    const r = await run(password, text, { first, last });
     if (!r.ok) return void toast.error(r.error);
     toast.success(`${title.replace(/\?$/, "")} — done`);
     setOpen(false);
@@ -44,6 +48,16 @@ function Confirm({ trigger, title, description, button, destructive, note, run }
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription asChild><div className="space-y-2">{description}</div></DialogDescription>
           </DialogHeader>
+          {dates && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField id="fy-first" label="First day" required>
+                <TextInput id="fy-first" type="date" value={first} onChange={(e) => setFirst(e.target.value)} />
+              </FormField>
+              <FormField id="fy-last" label="Last day" required>
+                <TextInput id="fy-last" type="date" value={last} onChange={(e) => setLast(e.target.value)} />
+              </FormField>
+            </div>
+          )}
           {note && (
             <FormField id="fy-note" label={note.label} required={note.required}>
               <TextArea id="fy-note" value={text} onChange={(e) => setText(e.target.value)} />
@@ -54,7 +68,7 @@ function Confirm({ trigger, title, description, button, destructive, note, run }
           </FormField>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="submit" variant={destructive ? "destructive" : "default"} disabled={pending || !password}>{button}</Button>
+            <Button type="submit" variant={destructive ? "destructive" : "default"} disabled={pending || !password || (!!dates && (!first || !last))}>{button}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -62,14 +76,28 @@ function Confirm({ trigger, title, description, button, destructive, note, run }
   );
 }
 
-export function StartYear({ next }: { next: string }) {
+export function StartYear({ first, last }: { first: string; last: string }) {
   return (
     <Confirm
-      trigger={<Button size="sm"><Plus aria-hidden /> Start FY {next}</Button>}
-      title={`Start FY ${next}?`}
-      description={<p>FY {next} runs from 1 April {next.slice(0, 4)} to 31 March {Number(next.slice(0, 4)) + 1}. Once started, cases, payments, donations and expenses dated in it can be recorded, and its numbers start again from 1.</p>}
-      button={`Start FY ${next}`}
-      run={(password) => startFiscalYear({ password })}
+      trigger={<Button size="sm"><Plus aria-hidden /> Start a new fiscal year</Button>}
+      title="Start a new fiscal year"
+      description={<p>Choose its first and last day. The suggested dates follow on from the latest year. Its name comes from the dates (for example 2026-27, or 2027 for a calendar year), and case, voucher and receipt numbers start again from 1.</p>}
+      dates={{ first, last }}
+      button="Start the year"
+      run={(password, _note, d) => startFiscalYear({ password, startsOn: d.first, lastDay: d.last })}
+    />
+  );
+}
+
+export function EditYearDates({ code, first, last }: { code: string; first: string; last: string }) {
+  return (
+    <Confirm
+      trigger={<Button size="sm" variant="outline">Edit dates</Button>}
+      title={`Change the dates of FY ${code}`}
+      description={<p>Records already entered in FY {code} must still fall inside the new dates, and the dates cannot overlap another year.</p>}
+      dates={{ first, last }}
+      button="Save dates"
+      run={(password, _note, d) => updateFiscalYearDates({ code, password, startsOn: d.first, lastDay: d.last })}
     />
   );
 }

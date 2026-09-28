@@ -1,7 +1,8 @@
 import "server-only";
 import type { HospitalType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { fyRange, monthKey, previousFiscalYear } from "@/lib/fy";
+import { monthKey } from "@/lib/fy";
+import { fyBounds, previousFy } from "@/lib/fy/db";
 import type { ViewContext } from "@/lib/redact";
 import { can } from "@/lib/auth/permissions";
 import { LIVE_PAYMENT } from "./shared";
@@ -19,8 +20,10 @@ export function months(from: Date, n: number): string[] {
   });
 }
 
-async function fyFigures(fy: string, withDonations: boolean) {
-  const { start, end } = fyRange(fy);
+async function fyFigures(fy: string | null, withDonations: boolean) {
+  // No earlier year to compare with: zeros.
+  if (!fy) return { cases: 0, disbursed: 0n, donations: 0n, helped: 0, helpedIds: [] as string[] };
+  const { start, end } = await fyBounds(fy);
   const [cases, disbursed, donations, helped] = await Promise.all([
     prisma.application.count({ where: { fiscalYear: fy, status: { not: "DRAFT" } } }),
     prisma.payment.aggregate({ where: { ...LIVE_PAYMENT, paymentDate: { gte: start, lt: end } }, _sum: { amountPaise: true } }),
@@ -41,14 +44,14 @@ async function fyFigures(fy: string, withDonations: boolean) {
 }
 
 export async function getDashboard(ctx: ViewContext) {
-  const { start, end } = fyRange(ctx.fy);
+  const { start, end } = await fyBounds(ctx.fy);
   // Role-gated parts are not queried at all for roles that may not see them.
   const seeDonations = can(ctx, "donations.read");
   const seeFunds = can(ctx, "funds.read");
   const seeAudit = can(ctx, "audit.read");
   const [cur, prev, funds, attention] = await Promise.all([
     fyFigures(ctx.fy, seeDonations),
-    fyFigures(previousFiscalYear(ctx.fy), seeDonations),
+    previousFy(ctx.fy).then((prev) => fyFigures(prev, seeDonations)),
     seeFunds ? listFunds(ctx) : null,
     attentionCounts(),
   ]);
@@ -129,7 +132,7 @@ async function categoryMix(where: Prisma.ApplicationWhereInput) {
 // ─────────────────────────── hospitals ───────────────────────────
 
 export async function listHospitals(ctx: ViewContext, f: { q?: string; includeInactive?: boolean; type?: HospitalType; withCases?: boolean }) {
-  const { start, end } = fyRange(ctx.fy);
+  const { start, end } = await fyBounds(ctx.fy);
   const hospitals = await prisma.hospital.findMany({
     where: {
       ...(f.includeInactive ? {} : { isActive: true }),
@@ -171,7 +174,7 @@ export async function getHospital(id: string) {
 
 /** The Diseases list: one row per disease with this FY's patients, cases and amount paid. */
 export async function diseaseRows(ctx: ViewContext, f: { q?: string; categoryId?: string; chronic?: boolean; withCases?: boolean }) {
-  const { start, end } = fyRange(ctx.fy);
+  const { start, end } = await fyBounds(ctx.fy);
   const [cats, apps, pays] = await Promise.all([
     prisma.diseaseCategory.findMany({ orderBy: { sortOrder: "asc" }, include: { diseases: { where: { deletedAt: null }, orderBy: { name: "asc" } } } }),
     prisma.application.findMany({ where: { fiscalYear: ctx.fy, status: { not: "DRAFT" }, diseaseId: { not: null } }, select: { diseaseId: true, patientId: true } }),

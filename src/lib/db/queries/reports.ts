@@ -1,7 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { can, type Capability } from "@/lib/auth/permissions";
-import { fmtDate, fmtMonth, fyRange, byMonth } from "@/lib/fy";
+import { fmtDate, fmtMonth, byMonth } from "@/lib/fy";
+import { fyBounds } from "@/lib/fy/db";
 import { formatINR } from "@/lib/money";
 import { PAYMENT_MODE, PAYMENT_STATUS, TOWARDS } from "@/lib/labels";
 import type { ViewContext } from "@/lib/redact";
@@ -43,8 +44,8 @@ export function canViewReport(ctx: ViewContext, key: ReportKey) {
 }
 
 export type Period = { from: Date; to: Date; label: string };
-export function fyPeriod(fy: string): Period {
-  const { start, end } = fyRange(fy);
+export async function fyPeriod(fy: string): Promise<Period> {
+  const { start, end } = await fyBounds(fy);
   return { from: start, to: end, label: `FY ${fy}` };
 }
 

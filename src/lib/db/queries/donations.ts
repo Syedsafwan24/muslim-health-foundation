@@ -1,7 +1,7 @@
 import "server-only";
 import type { Donor, DonorType, ExpenseCategory, PaymentMode, Prisma } from "@prisma/client";
 import { includeDeleted, prisma } from "@/lib/db";
-import { fyRange } from "@/lib/fy";
+import { fyBounds } from "@/lib/fy/db";
 import { can } from "@/lib/auth/permissions";
 import { AMOUNT_BANDS, DONOR_TYPE, EXPENSE_CATEGORY, PAYMENT_MODE, type AmountBand } from "@/lib/labels";
 import type { readParams } from "@/lib/params";
@@ -74,7 +74,7 @@ export function donationFilters(p: Params, ctx: ViewContext): DonationFilters {
 export async function listDonations(ctx: ViewContext, f: DonationFilters) {
   const and: Prisma.DonationWhereInput[] = [];
   if (f.fy) {
-    const { start, end } = fyRange(f.fy);
+    const { start, end } = await fyBounds(f.fy);
     and.push({ donationDate: { gte: start, lt: end } });
   }
   if (f.mode) and.push({ mode: f.mode });
@@ -176,7 +176,7 @@ export async function listDonors(ctx: ViewContext, f: DonorFilters) {
   if (f.type) and.push({ type: f.type });
   const where: Prisma.DonorWhereInput = { AND: and };
   const period = f.from || f.to ? { donationDate: { ...(f.from ? { gte: f.from } : {}), ...(f.to ? { lt: f.to } : {}) } } : {};
-  const fy = fyRange(ctx.fy);
+  const fy = await fyBounds(ctx.fy);
   const [donors, given, inFy] = await Promise.all([
     prisma.donor.findMany({ where, select: { id: true, donorCode: true, name: true, isAnonymous: true, type: true, city: true, phone: true } }),
     prisma.donation.groupBy({
@@ -312,7 +312,7 @@ export function expenseFilters(p: Params, ctx: ViewContext): ExpenseFilters {
 export async function listExpenses(ctx: ViewContext, f: ExpenseFilters) {
   const and: Prisma.ExpenseWhereInput[] = [];
   if (f.fy) {
-    const { start, end } = fyRange(f.fy);
+    const { start, end } = await fyBounds(f.fy);
     and.push({ expenseDate: { gte: start, lt: end } });
   }
   if (f.category) and.push({ category: f.category });

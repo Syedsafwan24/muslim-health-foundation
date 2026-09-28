@@ -40,8 +40,8 @@ async function main() {
     ["hospital page", () => caseBreakdown(ctx, { hospitalId: hospital.id })],
     ["diseases", () => diseaseRows(ctx, {})],
     ["audit log", () => listAudit(ctx, {})],
-    ["report: payments register", () => runReport(ctx, "disbursements", fyPeriod(ctx.fy))],
-    ["report: annual pack", () => runReport(ctx, "annual", fyPeriod(ctx.fy))],
+    ["report: payments register", async () => runReport(ctx, "disbursements", await fyPeriod(ctx.fy))],
+    ["report: annual pack", async () => runReport(ctx, "annual", await fyPeriod(ctx.fy))],
   ];
   for (const [, fn] of cases) await fn(); // warm the connection pool and plans
   const rows: [number, string][] = [];

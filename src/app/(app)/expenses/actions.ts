@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { action, UserError } from "@/lib/action";
 import { formatINR } from "@/lib/money";
-import { fromDateInput, getFiscalYear } from "@/lib/fy";
-import { nextExpenseNo } from "@/lib/numbering";
+import { fromDateInput } from "@/lib/fy";
+import { fiscalYearFor, nextExpenseNo } from "@/lib/numbering";
 import { fundBalance } from "@/lib/db/queries/funds";
 import { lockFund } from "@/lib/db/writes";
 import { expenseSchema } from "@/lib/validators";
@@ -20,7 +20,7 @@ export const createExpense = action("expenses.write", expenseSchema, async (inpu
   const balance = await fundBalance(fund.id, tx);
   if (input.amountPaise > balance) throw new UserError(`${fund.name} fund has ${formatINR(balance)} left. Reduce the amount or choose another fund.`);
   const expenseDate = fromDateInput(input.expenseDate);
-  const voucherNo = await nextExpenseNo(tx, getFiscalYear(expenseDate));
+  const voucherNo = await nextExpenseNo(tx, await fiscalYearFor(tx, expenseDate));
   const e = await tx.expense.create({
     data: { voucherNo, category: input.category, description: input.description, amountPaise: input.amountPaise, expenseDate, fundId: fund.id, paidTo: input.paidTo, mode: input.mode, referenceNo: input.referenceNo, createdById: ctx.userId },
   });

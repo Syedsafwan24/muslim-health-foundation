@@ -2,7 +2,8 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { startOfMonth, subMonths } from "date-fns";
 import { prisma } from "@/lib/db";
-import { byMonth, fyRange } from "@/lib/fy";
+import { byMonth } from "@/lib/fy";
+import { fyBounds } from "@/lib/fy/db";
 import { GENDER } from "@/lib/labels";
 import { currentAge, personRef, toAgeBand, type ViewContext } from "@/lib/redact";
 import { LIVE_PAYMENT } from "./shared";
@@ -29,7 +30,7 @@ export async function caseBreakdown(ctx: ViewContext, scope: { hospitalId: strin
       _count: { select: { payments: { where: { status: "ISSUED", clearedAt: null, deletedAt: null } } } },
     },
   });
-  const { start, end } = fyRange(ctx.fy);
+  const { start, end } = await fyBounds(ctx.fy);
   // Exact age is identifying in Meeting Mode; the age band is shown instead.
   const shownAge = (p: Parameters<typeof currentAge>[0]): number | string | null => (ctx.meetingMode ? toAgeBand(currentAge(p)) : currentAge(p));
   const paidOf = (a: (typeof apps)[number]) => a.payments.reduce((s, p) => s + p.amountPaise, 0n);

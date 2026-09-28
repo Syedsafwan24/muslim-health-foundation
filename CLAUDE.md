@@ -53,7 +53,9 @@ expenses, and every report the trustees currently produce by hand.
 6. **No PII in logs, URLs, or error messages.** Use the case number, never the patient name.
 7. **Attachments are private.** Never a public URL. Always a signed URL, 5-minute TTL, issued by
    a server action that checks role + Meeting Mode + writes an audit row.
-8. **Fiscal year is Indian:** 1 April – 31 March. Case numbers and reports are FY-scoped.
+8. **Fiscal years are set by the super admin** (Settings → Fiscal years): each year is a row
+   with its own first and last day (default suggestion 1 April – 31 March). Dates map to a year
+   only through `src/lib/fy/db.ts`; case numbers and reports are FY-scoped.
 9. Follow `docs/04-design-system.md` for every colour, font size, radius and spacing value.
    Do not invent tokens. Do not use default shadcn slate/zinc palettes.
 10. Run `pnpm typecheck && pnpm lint` before declaring any task done.

@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { action, UserError } from "@/lib/action";
-import { fromDateInput, getFiscalYear } from "@/lib/fy";
-import { nextVoucherNo } from "@/lib/numbering";
+import { fromDateInput } from "@/lib/fy";
+import { fiscalYearFor, nextVoucherNo } from "@/lib/numbering";
 import { createPayment, syncPaymentStatus } from "@/lib/db/writes";
 import { z } from "zod";
 import { clearSchema, id, paymentSchema, reasonSchema } from "@/lib/validators";
@@ -64,7 +64,7 @@ export const cancelPayment = action("payments.write", reasonSchema, async ({ id,
   if (await tx.payment.findFirst({ where: { reversalOfId: p.id } })) throw new UserError(`Payment ${p.voucherNo} has already been reversed.`);
 
   if (p.status === "CLEARED") {
-    const voucherNo = await nextVoucherNo(tx, getFiscalYear());
+    const voucherNo = await nextVoucherNo(tx, await fiscalYearFor(tx, new Date()));
     const r = await tx.payment.create({
       data: {
         voucherNo, applicationId: p.applicationId, fundId: p.fundId, amountPaise: -p.amountPaise, mode: p.mode,

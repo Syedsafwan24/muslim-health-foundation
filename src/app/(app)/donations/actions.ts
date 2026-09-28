@@ -6,8 +6,8 @@ import { action, UserError } from "@/lib/action";
 import type { Tx } from "@/lib/db";
 import { diff } from "@/lib/audit";
 import { formatINR } from "@/lib/money";
-import { fromDateInput, getFiscalYear } from "@/lib/fy";
-import { assertFiscalYearOpen, nextDonorCode, nextReceiptNo } from "@/lib/numbering";
+import { fromDateInput } from "@/lib/fy";
+import { fiscalYearFor, nextDonorCode, nextReceiptNo } from "@/lib/numbering";
 import { donationSchema, donorSchema, id, reasonSchema } from "@/lib/validators";
 import { fundBalance } from "@/lib/db/queries/funds";
 import { lockFund } from "@/lib/db/writes";
@@ -72,8 +72,8 @@ export const saveDonation = action("donations.write", donationSchema, async (inp
     if (before.cancelledAt) throw new UserError(`Receipt ${before.receiptNo} is cancelled and cannot be edited.`);
     if (before.isReceiptIssued) throw new UserError(`Receipt ${before.receiptNo} has been issued. Cancel it and record the donation again.`);
     // Both the year it was in and the year it moves to must be open.
-    await assertFiscalYearOpen(tx, getFiscalYear(before.donationDate));
-    await assertFiscalYearOpen(tx, getFiscalYear(data.donationDate));
+    await fiscalYearFor(tx, before.donationDate);
+    await fiscalYearFor(tx, data.donationDate);
     await lockFund(tx, before.fundId);
     await tx.donation.update({ where: { id: input.id }, data });
     await assertNotOverdrawn(tx, before.fundId);
@@ -82,7 +82,7 @@ export const saveDonation = action("donations.write", donationSchema, async (inp
     revalidatePath("/donations");
     return { id: input.id, receiptNo: before.receiptNo };
   }
-  const receiptNo = await nextReceiptNo(tx, getFiscalYear(data.donationDate));
+  const receiptNo = await nextReceiptNo(tx, await fiscalYearFor(tx, data.donationDate));
   const d = await tx.donation.create({ data: { ...data, receiptNo, createdById: ctx.userId } });
   await audit({ action: "CREATE", entity: "Donation", entityId: d.id, summary: `Recorded donation ${receiptNo} of ${formatINR(input.amountPaise)} to ${fund.name}` });
   revalidatePath("/donations");

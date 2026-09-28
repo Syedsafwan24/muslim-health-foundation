@@ -2,7 +2,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import type { readParams } from "@/lib/params";
-import { fyRange } from "@/lib/fy";
+import { fyBounds } from "@/lib/fy/db";
 import { identityHash, normaliseMobile, normaliseName } from "@/lib/crypto";
 import { personRef, redactPerson, toAgeBand, currentAge, type PersonRef, type PersonView, type ViewContext } from "@/lib/redact";
 import { LIVE_PAYMENT, pageArgs, PAGE_SIZE, type Page } from "./shared";
@@ -149,7 +149,7 @@ export async function listPeople(ctx: ViewContext, f: PeopleFilters & { as: "pat
 export async function getPerson(ctx: ViewContext, id: string) {
   const p = await prisma.person.findFirst({ where: { id }, include: { area: true } });
   if (!p) return null;
-  const { start, end } = fyRange(ctx.fy);
+  const { start, end } = await fyBounds(ctx.fy);
   const appSelect = {
     id: true, caseNo: true, applicationDate: true, status: true, requestedAmountPaise: true, approvedAmountPaise: true,
     disease: { select: { name: true } }, hospital: { select: { name: true } },

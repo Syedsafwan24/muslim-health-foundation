@@ -2,8 +2,9 @@ import "server-only";
 import type { ApplicationStatus, PaymentMode, PaymentTowards } from "@prisma/client";
 import { UserError } from "@/lib/action";
 import { formatINR } from "@/lib/money";
-import { fromDateInput, fyRange, getFiscalYear } from "@/lib/fy";
-import { nextVoucherNo } from "@/lib/numbering";
+import { fromDateInput } from "@/lib/fy";
+import { fyBounds, fyOfDate } from "@/lib/fy/db";
+import { fiscalYearFor, nextVoucherNo } from "@/lib/numbering";
 import { fundBalance } from "./queries/funds";
 import type { z } from "zod";
 import type { Tx } from "@/lib/db";
@@ -111,7 +112,7 @@ export async function createPayment(
   if (p.amountPaise > balance) throw new UserError(`${fund.name} fund has ${formatINR(balance)} left. Reduce the amount or choose another fund.`);
 
   const paymentDate = fromDateInput(p.paymentDate);
-  const voucherNo = await nextVoucherNo(tx, getFiscalYear(paymentDate));
+  const voucherNo = await nextVoucherNo(tx, await fiscalYearFor(tx, paymentDate));
   const toApplicant = p.towards === "APPLICANT_DIRECT";
   const row = await tx.payment.create({
     data: {
@@ -138,7 +139,7 @@ export async function createPayment(
   await syncPaymentStatus(tx, applicationId, userId, `Payment ${voucherNo}`);
 
   // Warn (not block) when the fund drops below 10% of this year's inflow.
-  const { start, end } = fyRange(getFiscalYear());
+  const { start, end } = await fyBounds((await fyOfDate(new Date(), tx)) ?? "", tx);
   const inflow = (await tx.donation.aggregate({ where: { fundId: fund.id, cancelledAt: null, donationDate: { gte: start, lt: end } }, _sum: { amountPaise: true } }))._sum.amountPaise ?? 0n;
   const after = balance - p.amountPaise;
   return { id: row.id, voucherNo, fundName: fund.name, fundBalanceAfter: after, lowBalance: after < inflow / 10n };

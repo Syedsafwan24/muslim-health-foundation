@@ -213,6 +213,34 @@ describe("money in and running costs", () => {
 });
 
 describe("fiscal years", () => {
+  // Custom-dated years in 1970 so nothing real is touched; cleared with raw SQL (soft delete keeps codes).
+  beforeAll(async () => {
+    await prisma.$executeRaw`DELETE FROM "FiscalYear" WHERE code IN ('1970', '1970-71')`;
+  });
+
+  it("lets the super admin set a year's own dates, named from them", async () => {
+    await as("SUPER_ADMIN");
+    const y = ok(await fys.startFiscalYear({ password: "x", startsOn: "1970-01-01", lastDay: "1970-12-31" }));
+    expect(y.code).toBe("1970");
+    const overlap = await fys.startFiscalYear({ password: "x", startsOn: "1970-07-01", lastDay: "1971-06-30" });
+    expect(overlap.ok).toBe(false);
+    if (!overlap.ok) expect(overlap.error).toMatch(/overlap FY 1970/);
+
+    await as("ACCOUNTANT");
+    const donor = ok(await dons.saveDonor({ name: `Calendar FY donor ${stamp}`, type: "INDIVIDUAL", isAnonymous: false }));
+    const d = ok(await dons.saveDonation({ donorId: donor.id, fundId: zakatId, amountPaise: 50000n, donationDate: "1970-06-15", mode: "CASH" }));
+    expect(d.receiptNo).toMatch(/^R\/1970\//);
+
+    // Shrinking the year would leave that donation outside it.
+    await as("SUPER_ADMIN");
+    const shrink = await fys.updateFiscalYearDates({ code: "1970", password: "x", startsOn: "1970-01-01", lastDay: "1970-03-31" });
+    expect(shrink.ok).toBe(false);
+    if (!shrink.ok) expect(shrink.error).toMatch(/\d+ donations? of FY 1970 would fall outside/);
+    ok(await fys.updateFiscalYearDates({ code: "1970", password: "x", startsOn: "1970-01-01", lastDay: "1970-09-30" }));
+    const row = await prisma.fiscalYear.findUniqueOrThrow({ where: { code: "1970" } });
+    expect(row.endsOn.toISOString()).toBe("1970-09-30T18:30:00.000Z");
+  });
+
   // A far-past year so closing it cannot disturb the other suites writing into the current year.
   const OLD = "1990-91";
   beforeAll(async () => {
@@ -228,7 +256,7 @@ describe("fiscal years", () => {
     const donor = ok(await dons.saveDonor({ name: `FY donor ${stamp}`, type: "INDIVIDUAL", isAnonymous: false }));
     const r = await dons.saveDonation({ donorId: donor.id, fundId: zakatId, amountPaise: 100000n, donationDate: "1985-06-01", mode: "CASH" });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error).toMatch(/FY 1985-86 has not been started/);
+    if (!r.ok) expect(r.error).toMatch(/No fiscal year covers 01 Jun 1985/);
   });
 
   it("lets the super admin close and reopen a year, and a closed year takes no entries", async () => {

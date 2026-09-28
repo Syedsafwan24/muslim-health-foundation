@@ -9,8 +9,9 @@ import { assertPermission, can } from "@/lib/auth/permissions";
 import { requireViewContext } from "@/lib/auth/context";
 import { verifyPassword } from "@/lib/auth";
 import { diff } from "@/lib/audit";
-import { fromDateInput, getFiscalYear } from "@/lib/fy";
-import { nextCaseNo } from "@/lib/numbering";
+import { fromDateInput } from "@/lib/fy";
+import { fyOfDate } from "@/lib/fy/db";
+import { fiscalYearFor, nextCaseNo } from "@/lib/numbering";
 import { getSetting } from "@/lib/settings";
 import { mentionsNames } from "@/lib/redact";
 import { createPayment, lockApplication, moveStatus, savePerson, syncPaymentStatus } from "@/lib/db/writes";
@@ -117,7 +118,7 @@ export const saveApplication = action("applications.write", applicationSchema, a
   } else {
     const draftNo = `DRAFT/${randomBytes(5).toString("hex").toUpperCase()}`;
     const app = await tx.application.create({
-      data: { ...data, caseNo: draftNo, fiscalYear: getFiscalYear(), serial: 0, status: "DRAFT", createdById: ctx.userId },
+      data: { ...data, caseNo: draftNo, fiscalYear: (await fyOfDate(new Date(), tx)) ?? "", serial: 0, status: "DRAFT", createdById: ctx.userId },
     });
     await tx.applicationStatusHistory.create({ data: { applicationId: app.id, toStatus: "DRAFT", changedById: ctx.userId } });
     await audit({ action: "CREATE", entity: "Application", entityId: app.id, summary: `Started draft ${draftNo}` });
@@ -160,7 +161,7 @@ export const submitApplication = action("applications.write", recordCaseSchema, 
   const missing = await missingDocuments(a.attachments.map((x) => x.type));
   if (missing.length) throw new UserError(`Upload the ${missing.join(", ")} before saving the case.`);
 
-  const fy = getFiscalYear(a.applicationDate);
+  const fy = await fiscalYearFor(tx, a.applicationDate);
   const { caseNo, serial } = await nextCaseNo(tx, fy);
   await tx.application.update({ where: { id }, data: { caseNo, serial, fiscalYear: fy, decidedById: ctx.userId, decidedAt: new Date() } });
   await moveStatus(tx, id, "APPROVED", ctx.userId);
