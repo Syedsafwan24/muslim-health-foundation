@@ -6,7 +6,7 @@ import type { PaymentStatus } from "@prisma/client";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Check, Download, Eye, EyeOff, Lock, MoreHorizontal, Upload } from "lucide-react";
+import { Check, Download, Eye, EyeOff, Lock, MoreHorizontal, Upload, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -362,7 +362,7 @@ export function PaymentForm({ applicationId, remainingPaise, funds, banks, hospi
   );
 }
 
-export function PaymentRowActions({ id, voucherNo, status, canManage }: { id: string; voucherNo: string; status: PaymentStatus; canManage: boolean }) {
+export function PaymentRowActions({ id, voucherNo, status, canManage, receipt = false }: { id: string; voucherNo: string; status: PaymentStatus; canManage: boolean; receipt?: boolean }) {
   const { pending, run } = useRun();
   const [dialog, setDialog] = useState<null | "bounce" | "cancel" | "clear">(null);
   const [reason, setReason] = useState("");
@@ -370,6 +370,11 @@ export function PaymentRowActions({ id, voucherNo, status, canManage }: { id: st
   const live = status !== "CANCELLED" && status !== "BOUNCED";
   return (
     <>
+      {receipt && (
+        <Button size="sm" variant="outline" asChild>
+          <a href={`/api/export/payment-receipt?id=${id}`} target="_blank" rel="noopener"><Printer aria-hidden /> Receipt</a>
+        </Button>
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="icon" variant="ghost" aria-label={`Actions for ${voucherNo}`} disabled={pending}><MoreHorizontal aria-hidden /></Button>

@@ -11,7 +11,7 @@ import { getSetting } from "@/lib/settings";
 import { fmtDate, fmtDateTime } from "@/lib/fy";
 import { formatINR } from "@/lib/money";
 import {
-  AUDIT_ACTION, CASE_DOCUMENTS, GENDER, MARITAL, PAYMENT_MODE, RELATION, TOWARDS,
+  AUDIT_ACTION, CASE_DOCUMENTS, GENDER, MARITAL, PAYMENT_MODE, RELATION, TOWARDS, spouseLabel,
 } from "@/lib/labels";
 import { EDITABLE, PAYABLE, STATUS_LABEL } from "@/lib/applications/transitions";
 import type { PersonView } from "@/lib/redact";
@@ -147,7 +147,7 @@ function PersonBlock({ title, p, extra }: { title: string; p: PersonView; extra?
       <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
         <Field label="Name" className="sm:col-span-2">{p.fullName}</Field>
         <Field label="Father name">{p.fatherName}</Field>
-        <Field label="Husband name">{p.husbandName}</Field>
+        <Field label={spouseLabel(p.gender)}>{p.husbandName}</Field>
         <Field label="Address" className="sm:col-span-2">{p.addressLine}</Field>
         <Field label="Status">{MARITAL[p.maritalStatus]}</Field>
         <Field label="Age · gender">{[p.age != null ? `${p.age} years` : null, p.gender && GENDER[p.gender]].filter(Boolean).join(" · ")}</Field>
@@ -258,6 +258,7 @@ async function DocumentsTab({ a, canUpload, canVerify }: { a: A; canUpload: bool
 }
 
 async function PaymentsTab({ a, canPay, canManage }: { a: A; canPay: boolean; canManage: boolean }) {
+  const canExportReceipt = can(await getViewContext(), "reports.export");
   const [funds, m] = canPay ? await Promise.all([activeFunds("aid"), masterOptions()]) : [[], null];
   const remaining = (a.approvedAmountPaise ?? 0n) - a.paidPaise;
   return (
@@ -290,7 +291,10 @@ async function PaymentsTab({ a, canPay, canManage }: { a: A; canPay: boolean; ca
                       {p.reversed && <Pill tone="rejected" className="ml-1">Reversed</Pill>}
                     </td>
                     <td className="px-3 text-right">
-                      <PaymentRowActions id={p.id} voucherNo={p.voucherNo} status={p.status} canManage={canManage && !p.isReversal && !p.reversed} />
+                      <span className="inline-flex items-center gap-1">
+                        <PaymentRowActions id={p.id} voucherNo={p.voucherNo} status={p.status} canManage={canManage && !p.isReversal && !p.reversed}
+                          receipt={canExportReceipt && !p.isReversal && !p.reversed && p.status !== "CANCELLED" && p.status !== "BOUNCED"} />
+                      </span>
                     </td>
                   </tr>
                 ))}

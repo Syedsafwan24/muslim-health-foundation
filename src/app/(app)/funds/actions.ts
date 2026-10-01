@@ -5,6 +5,7 @@ import { action, UserError } from "@/lib/action";
 import { verifyPassword } from "@/lib/auth";
 import { diff } from "@/lib/audit";
 import { fundSchema } from "@/lib/validators";
+import { NO_RUNNING_COSTS } from "@/lib/labels";
 
 /** Fund changes need the password again (docs/03 §8). */
 export const saveFund = action("funds.write", fundSchema, async ({ id, password, ...data }, { ctx, tx, audit }) => {
@@ -12,11 +13,11 @@ export const saveFund = action("funds.write", fundSchema, async ({ id, password,
   if (id) {
     const before = await tx.fund.findFirst({ where: { id } });
     if (!before) throw new UserError("That fund no longer exists.");
-    if (before.type === "ZAKAT" && data.allowsExpenses) throw new UserError("Zakat cannot pay the trust's running costs.");
+    if (NO_RUNNING_COSTS.includes(data.type) && data.allowsExpenses) throw new UserError("Zakat and interest money cannot pay the trust's running costs.");
     if (data.type !== before.type) {
       // Retyping would let Zakat money be relabelled and then spent on running costs.
       if (before.type === "ZAKAT") throw new UserError("A Zakat fund cannot be changed to another type.");
-      if (data.type === "ZAKAT" && before.allowsExpenses) throw new UserError("Turn off running costs before making this a Zakat fund.");
+      if (NO_RUNNING_COSTS.includes(data.type) && before.allowsExpenses) throw new UserError("Turn off running costs before making this a Zakat or Interest fund.");
     }
     if (data.openingBalancePaise !== before.openingBalancePaise) {
       const used = (await tx.donation.count({ where: { fundId: id } })) + (await tx.payment.count({ where: { fundId: id } })) + (await tx.expense.count({ where: { fundId: id } }));

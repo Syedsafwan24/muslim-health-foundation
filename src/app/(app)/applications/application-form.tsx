@@ -12,7 +12,7 @@ import { FormField, MoneyInput, Select, TextInput } from "@/components/app/input
 import { applicationSchema, emptyPerson, missingRequired, paymentEntrySchema, REQUIRED, type ApplicationInput, type PaymentEntryInput, type PersonInput } from "@/lib/validators";
 import { formatINR } from "@/lib/money";
 import { toDateInput } from "@/lib/fy";
-import { GENDER, MARITAL, options, PAYMENT_MODE, RELATION, religionOptions, TOWARDS } from "@/lib/labels";
+import { GENDER, MARITAL, options, PAYMENT_MODE, RELATION, religionOptions, TOWARDS, spouseLabel } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import { checkDuplicates, loadPerson, saveApplication, submitApplication } from "./actions";
 import { useAddDialog, type AddKind } from "./add-dialog";
@@ -359,6 +359,7 @@ function PersonBlock({ form, block, known, onPick, onClear }: {
   const { register, formState: { errors } } = form;
   const e = (errors[block] ?? {}) as Partial<Record<keyof PersonInput, { message?: string }>>;
   const personId = useWatch({ control: form.control, name: `${block}.personId` });
+  const watch = form.watch;
   const f = (name: keyof PersonInput) => `${block}.${name}` as const;
   const id = (name: string) => `${block}-${name}`;
   const who = block === "applicant" ? "Applicant" : "Patient";
@@ -384,7 +385,7 @@ function PersonBlock({ form, block, known, onPick, onClear }: {
         <FormField id={id("fatherName")} label="Father name" error={e.fatherName?.message} required={req("fatherName")}>
           <TextInput id={id("fatherName")} autoComplete="off" {...register(f("fatherName"))} invalid={!!e.fatherName} />
         </FormField>
-        <FormField id={id("husbandName")} label="Husband name" error={e.husbandName?.message}>
+        <FormField id={id("husbandName")} label={spouseLabel(watch(f("gender")) as string | undefined)} error={e.husbandName?.message}>
           <TextInput id={id("husbandName")} autoComplete="off" {...register(f("husbandName"))} />
         </FormField>
         <FormField id={id("addressLine")} label={`${who} address`} error={e.addressLine?.message} required={req("addressLine")}>

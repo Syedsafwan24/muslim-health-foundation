@@ -233,9 +233,8 @@ model Bank {
 
 enum FundType {
   ZAKAT
-  SADAQAH
   GENERAL
-  OTHER
+  INTEREST                                        // interest received on bank deposits, given away
 }
 
 // The client has confirmed that all aid disbursed is Zakat. Seed ONE active fund of type

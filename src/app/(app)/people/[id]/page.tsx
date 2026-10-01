@@ -8,7 +8,7 @@ import { getPerson } from "@/lib/db/queries/people";
 import { masterOptions } from "@/lib/db/queries/admin";
 import { fmtDate } from "@/lib/fy";
 import { formatINR } from "@/lib/money";
-import { GENDER, ID_TYPE, MARITAL } from "@/lib/labels";
+import { GENDER, ID_TYPE, MARITAL, spouseLabel } from "@/lib/labels";
 import { AliasChip, Field, MoneyText, PageHeader, SheetPanel, StatCard, StatusBadge } from "@/components/app/bits";
 import { PersonTools } from "./person-tools";
 import { DeleteButton } from "@/components/app/delete-button";
@@ -86,7 +86,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
           ) : (
             <dl className="space-y-3">
               <Field label="Father name">{p.fatherName}</Field>
-              <Field label="Husband name">{p.husbandName}</Field>
+              <Field label={spouseLabel(p.gender)}>{p.husbandName}</Field>
               <Field label="Status">{MARITAL[p.maritalStatus]}</Field>
               <Field label="Age · gender">{[p.age != null ? `${p.age} years` : null, p.gender && GENDER[p.gender]].filter(Boolean).join(" · ")}</Field>
               <Field label="Address">{[p.addressLine, p.areaName, p.city, p.pincode].filter(Boolean).join(", ")}</Field>

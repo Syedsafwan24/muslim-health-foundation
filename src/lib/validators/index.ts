@@ -201,7 +201,8 @@ export const donorSchema = z.object({
 export const donationSchema = z.object({
   id: optId,
   donorId: id,
-  fundId: optId,
+  // Every donation says which fund it goes to (Zakat, General or Interest).
+  fundId: z.string().min(1, "Choose the fund").max(40),
   amountPaise: positivePaise,
   donationDate: dateStr,
   mode: enumOf(PAYMENT_MODE),
@@ -235,7 +236,7 @@ export const fundSchema = z.object({
   openingBalancePaise: paise,
   password: z.string().min(1, "Enter your password to change fund settings"),
 }).superRefine((v, c) => {
-  if (v.type === "ZAKAT" && v.allowsExpenses) c.addIssue({ code: "custom", path: ["allowsExpenses"], message: "Zakat cannot pay the trust's running costs" });
+  if ((v.type === "ZAKAT" || v.type === "INTEREST") && v.allowsExpenses) c.addIssue({ code: "custom", path: ["allowsExpenses"], message: `${v.type === "ZAKAT" ? "Zakat" : "Interest"} money cannot pay the trust's running costs` });
 });
 
 // ─────────────────────────── masters ───────────────────────────

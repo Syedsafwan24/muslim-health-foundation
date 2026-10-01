@@ -81,7 +81,12 @@ export const RELIGIONS = ["Islam", "Hinduism", "Christianity", "Jainism", "Other
 export const religionOptions = (current?: string | null) =>
   [...RELIGIONS, ...(current && !(RELIGIONS as readonly string[]).includes(current) ? [current] : [])].map((r) => ({ value: r, label: r }));
 
-export const FUND_TYPE: Record<FundType, string> = { ZAKAT: "Zakat", SADAQAH: "Sadaqah", GENERAL: "General", OTHER: "Other" };
+/** The paper form's "Husband name" line, worded for the person's gender. */
+export const spouseLabel = (gender?: string | null) => (gender === "MALE" ? "Wife name" : gender === "FEMALE" ? "Husband name" : "Husband / wife name");
+
+export const FUND_TYPE: Record<FundType, string> = { ZAKAT: "Zakat", GENERAL: "General", INTEREST: "Interest" };
+/** Zakat and interest money go to people in need only, never to the trust's running costs. */
+export const NO_RUNNING_COSTS: readonly FundType[] = ["ZAKAT", "INTEREST"];
 
 export const ID_TYPE: Record<IdType, string> = {
   AADHAAR: "Aadhaar", VOTER_ID: "Voter ID", PAN: "PAN", RATION_CARD: "Ration card", PASSPORT: "Passport",

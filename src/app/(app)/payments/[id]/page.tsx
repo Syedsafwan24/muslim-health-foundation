@@ -27,6 +27,9 @@ export default async function PaymentPage({ params }: { params: Promise<{ id: st
         meta={<><PaymentStatusBadge status={p.status} />{p.isReversal && <Pill tone="slate">Reversal entry</Pill>}<span>for case <Link href={`/applications/${p.applicationId}`} className="font-mono text-info hover:underline">{p.caseNo}</Link></span></>}
         actions={
           <>
+            {!p.isReversal && !p.reversed && p.status !== "CANCELLED" && p.status !== "BOUNCED" && (
+              <Button variant="outline" asChild><a href={`/api/export/payment-receipt?id=${p.id}`} target="_blank" rel="noopener"><Printer aria-hidden /> Print receipt</a></Button>
+            )}
             <Button variant="outline" asChild><a href={`/api/export/voucher?id=${p.id}`} target="_blank" rel="noopener"><Printer aria-hidden /> Print voucher</a></Button>
             <PaymentRowActions id={p.id} voucherNo={p.voucherNo} status={p.status} canManage={can(ctx, "payments.write") && !p.isReversal} />
           </>

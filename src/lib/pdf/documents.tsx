@@ -169,6 +169,43 @@ export function Voucher({ org, d, printed }: { org: Org; d: VoucherData; printed
   );
 }
 
+export type PaymentReceiptData = {
+  voucherNo: string; date: string; paidTo: string; amount: string; words: string; mode: string;
+  reference: { label: string; value: string }; fromBank: string; caseNo: string; patient: string; towards: string;
+};
+
+/** Given to the hospital or family: proof that MHF paid, by which transfer, for which case. */
+export function PaymentReceipt({ org, d, printed }: { org: Org; d: PaymentReceiptData; printed: Printed }) {
+  return (
+    <Document title={`Payment receipt ${d.voucherNo}`}>
+      <Frame org={org} title="Payment receipt" subtitle={d.voucherNo} printed={printed}>
+        <View style={s.block}>
+          <View style={s.grid}>
+            <F label="Voucher no" value={d.voucherNo} mono /><F label="Date" value={d.date} />
+            <F label="Paid to" value={d.paidTo} wide />
+          </View>
+          <Text style={[s.amount, { marginTop: 6 }]}>{d.amount}</Text>
+          <Text style={s.note}>{d.words}</Text>
+          <View style={[s.grid, { marginTop: 10 }]}>
+            <F label="Mode of transfer" value={d.mode} /><F label={d.reference.label} value={d.reference.value} mono />
+            <F label="From bank" value={d.fromBank} /><F label="Towards" value={d.towards} />
+            <F label="Case no" value={d.caseNo} mono /><F label="Patient" value={d.patient} />
+          </View>
+        </View>
+        <View style={s.block}>
+          <Text>
+            {org.name} has paid the amount above towards the medical treatment of the patient named, under case {d.caseNo}.
+          </Text>
+        </View>
+        <View style={s.sigRow}>
+          <Text style={s.sig}>For {org.name} (authorised signatory)</Text>
+          <Text style={s.sig}>Received by (name, signature and stamp)</Text>
+        </View>
+      </Frame>
+    </Document>
+  );
+}
+
 export type ReceiptData = { receiptNo: string; date: string; donor: string; address: string; pan: string; amount: string; words: string; fund: string; mode: string; reference: string; cancelled: boolean };
 
 export function Receipt({ org, d, printed }: { org: Org; d: ReceiptData; printed: Printed }) {

@@ -87,8 +87,9 @@ export function DonationDialog({ donors, funds, banks, defaultDonorId, initial }
               <Controller control={control} name="amountPaise" render={({ field }) => <MoneyInput id="d-amount" value={field.value as bigint} onChange={(v) => field.onChange(v ?? 0n)} />} />
             </FormField>
             <FormField id="d-date" label="Date" required><TextInput id="d-date" type="date" {...register("donationDate")} /></FormField>
-            {/* Hidden while one fund is active; the fund is applied automatically. */}
-            {funds.length > 1 && <FormField id="d-fund" label="Fund" required><Select id="d-fund" {...register("fundId")} options={funds.map((f) => ({ value: f.id, label: f.name }))} placeholder="Choose Zakat or General" /></FormField>}
+            <FormField id="d-fund" label="Which fund does this money go to?" error={errors.fundId?.message} required className="sm:col-span-2">
+              <Select id="d-fund" {...register("fundId")} options={funds.map((f) => ({ value: f.id, label: f.name }))} placeholder={funds.length ? "Choose the fund" : "No fund yet. Add one under Funds"} invalid={!!errors.fundId} />
+            </FormField>
             <FormField id="d-mode" label="Mode"><Select id="d-mode" {...register("mode")} options={options(PAYMENT_MODE)} /></FormField>
             {mode !== "CASH" && <FormField id="d-bank" label="Bank"><Select id="d-bank" {...register("bankId")} options={banks.map((b) => ({ value: b.id, label: b.label }))} placeholder="Choose the bank" /></FormField>}
             {mode === "CHEQUE" && <FormField id="d-cheque" label="Cheque no."><TextInput id="d-cheque" {...register("chequeNo")} /></FormField>}

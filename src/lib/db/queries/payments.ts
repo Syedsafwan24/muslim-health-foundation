@@ -2,7 +2,7 @@ import "server-only";
 import type { Payment, PaymentMode, PaymentStatus, PaymentTowards, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { fyBounds } from "@/lib/fy/db";
-import type { ViewContext } from "@/lib/redact";
+import { personRef, type ViewContext } from "@/lib/redact";
 import { can } from "@/lib/auth/permissions";
 import { AMOUNT_BANDS, PAYMENT_MODE, PAYMENT_STATUS, type AmountBand } from "@/lib/labels";
 import type { readParams } from "@/lib/params";
@@ -189,8 +189,12 @@ export async function listPayments(ctx: ViewContext, f: PaymentFilters) {
 export async function getPayment(ctx: ViewContext, id: string) {
   const p = await prisma.payment.findFirst({
     where: { id },
-    include: { hospital: true, bank: true, fund: true, application: { select: { id: true, caseNo: true } } },
+    include: { hospital: true, bank: true, fund: true, application: { select: { id: true, caseNo: true, patient: true } } },
   });
   if (!p) return null;
-  return { ...paymentView(p, payeeMasked(ctx)), caseNo: p.application.caseNo, createdAt: p.createdAt };
+  const reversed = (await prisma.payment.count({ where: { reversalOfId: p.id } })) > 0;
+  return {
+    ...paymentView(p, payeeMasked(ctx)), caseNo: p.application.caseNo, createdAt: p.createdAt,
+    patient: personRef(p.application.patient, ctx), hospitalCity: p.hospital?.city ?? null, reversed,
+  };
 }

@@ -47,8 +47,8 @@ export function FundDialog({ initial }: { initial?: Input }) {
             <label className="flex items-center gap-2 text-ui"><input type="checkbox" {...register("isActive")} /> Active</label>
             <label className="flex items-center gap-2 text-ui"><input type="checkbox" {...register("isRestricted")} /> Restricted (aid only)</label>
             <label className="flex items-center gap-2 text-ui sm:col-span-2">
-              <input type="checkbox" {...register("allowsExpenses")} disabled={type === "ZAKAT"} /> Can pay the trust&apos;s running costs
-              {type === "ZAKAT" && <span className="text-caption text-slate-body">— never for Zakat</span>}
+              <input type="checkbox" {...register("allowsExpenses")} disabled={type === "ZAKAT" || type === "INTEREST"} /> Can pay the trust&apos;s running costs
+              {(type === "ZAKAT" || type === "INTEREST") && <span className="text-caption text-slate-body">— never for {type === "ZAKAT" ? "Zakat" : "interest"} money</span>}
             </label>
             {errors.allowsExpenses && <p role="alert" className="text-caption text-rejected sm:col-span-2">{errors.allowsExpenses.message}</p>}
             <FormField id="f-pass" label="Your password" error={errors.password?.message} required className="sm:col-span-2"><TextInput id="f-pass" type="password" autoComplete="current-password" {...register("password")} /></FormField>

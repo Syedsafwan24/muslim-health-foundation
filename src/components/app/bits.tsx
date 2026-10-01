@@ -206,7 +206,7 @@ export function Field({ label, children, mono, className }: { label: string; chi
 
 /** Fund balance with its spend proportion. */
 export function FundBar({ name, type, balancePaise, committedPct, low }: { name: string; type: string; balancePaise: bigint; committedPct: number; low: boolean }) {
-  const color = type === "ZAKAT" ? "bg-fund-zakat" : type === "SADAQAH" ? "bg-fund-sadaqah" : "bg-fund-general";
+  const color = type === "ZAKAT" ? "bg-fund-zakat" : type === "INTEREST" ? "bg-fund-sadaqah" : "bg-fund-general";
   return (
     <div className="grid grid-cols-[120px_1fr] items-center gap-x-4 gap-y-1 sm:grid-cols-[120px_160px_1fr_auto]">
       <div className="text-ui font-medium text-navy-900">{name}</div>

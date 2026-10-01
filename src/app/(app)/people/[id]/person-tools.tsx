@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FormField, Select, TextArea, TextInput } from "@/components/app/inputs";
-import { GENDER, ID_TYPE, MARITAL, options, religionOptions } from "@/lib/labels";
+import { GENDER, ID_TYPE, MARITAL, options, religionOptions, spouseLabel } from "@/lib/labels";
 import { personSchema, type PersonInput } from "@/lib/validators";
 import type { PersonFull } from "@/lib/redact";
 import { mergePersons, setWatchFlag, updatePerson } from "../actions";
@@ -51,7 +51,7 @@ function useRun(done: () => void) {
 
 function EditPerson({ p, areas, done }: { p: PersonFull; areas: { id: string; name: string }[]; done: () => void }) {
   const { pending, run } = useRun(done);
-  const { register, handleSubmit, formState: { errors } } = useForm<PersonInput>({
+  const { register, handleSubmit, watch: watchGender, formState: { errors } } = useForm<PersonInput>({
     resolver: zodResolver(personSchema),
     defaultValues: {
       personId: p.id, fullName: p.fullName, fatherName: p.fatherName ?? "", husbandName: p.husbandName ?? "", gender: p.gender ?? undefined,
@@ -65,7 +65,7 @@ function EditPerson({ p, areas, done }: { p: PersonFull; areas: { id: string; na
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField id="p-name" label="Name" error={errors.fullName?.message} required><TextInput id="p-name" {...register("fullName")} /></FormField>
         <FormField id="p-father" label="Father name"><TextInput id="p-father" {...register("fatherName")} /></FormField>
-        <FormField id="p-husband" label="Husband name"><TextInput id="p-husband" {...register("husbandName")} /></FormField>
+        <FormField id="p-husband" label={spouseLabel(watchGender("gender"))}><TextInput id="p-husband" {...register("husbandName")} /></FormField>
         <FormField id="p-mobile" label="Mobile no." error={errors.mobile?.message}><TextInput id="p-mobile" inputMode="tel" {...register("mobile")} /></FormField>
         <FormField id="p-alt" label="Alternate mobile" error={errors.altMobile?.message}><TextInput id="p-alt" inputMode="tel" {...register("altMobile")} /></FormField>
         <FormField id="p-area" label="Area"><Select id="p-area" {...register("areaId")} options={areas.map((a) => ({ value: a.id, label: a.name }))} placeholder="Choose the area" /></FormField>

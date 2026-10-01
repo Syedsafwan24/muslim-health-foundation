@@ -6,7 +6,7 @@ import { fmtDate, fmtDateTime, fromDateInput, isFiscalYear } from "@/lib/fy";
 import { fyBounds } from "@/lib/fy/db";
 import { amountInWords, formatINR } from "@/lib/money";
 import {
-  GENDER, MARITAL, PAYEE_TYPE, PAYMENT_MODE, PAYMENT_STATUS, RELATION, TOWARDS, AUDIT_ACTION,
+  GENDER, MARITAL, PAYEE_TYPE, PAYMENT_MODE, PAYMENT_STATUS, RELATION, TOWARDS, AUDIT_ACTION, spouseLabel,
 } from "@/lib/labels";
 import { STATUS_LABEL } from "@/lib/applications/transitions";
 import type { PersonView, ViewContext } from "@/lib/redact";
@@ -16,7 +16,7 @@ import { getDonation, getDonor } from "@/lib/db/queries/donations";
 import { listAudit } from "@/lib/db/queries/admin";
 import { canViewReport, cellText, fyPeriod, REPORTS, runReport, type ReportKey, type ReportTable } from "@/lib/db/queries/reports";
 import { recordExport } from "@/lib/db/queries/shared";
-import { CaseSheet, Receipt, Tables, toPdf, Voucher, type Org, type Printed } from "@/lib/pdf/documents";
+import { CaseSheet, PaymentReceipt, Receipt, Tables, toPdf, Voucher, type Org, type Printed } from "@/lib/pdf/documents";
 import { toXlsx } from "@/lib/export/xlsx";
 import { LIST_EXPORTS } from "@/lib/export/lists";
 
@@ -44,7 +44,7 @@ function personRows(p: PersonView): [string, string][] {
     return [["Person code", p.personCode], ["Gender", p.gender ? GENDER[p.gender] : "—"], ["Age band", p.ageBand ?? "—"], ["Status", MARITAL[p.maritalStatus]], ["Identity", "Hidden — meeting mode"]];
   }
   return [
-    ["Name", p.fullName], ["Person code", p.personCode], ["Father name", p.fatherName ?? ""], ["Husband name", p.husbandName ?? ""],
+    ["Name", p.fullName], ["Person code", p.personCode], ["Father name", p.fatherName ?? ""], [spouseLabel(p.gender), p.husbandName ?? ""],
     ["Address", [p.addressLine, p.areaName, p.city, p.pincode].filter(Boolean).join(", ")], ["Status", MARITAL[p.maritalStatus]],
     ["Age", p.age != null ? String(p.age) : ""], ["Gender", p.gender ? GENDER[p.gender] : ""], ["Religion", p.religion ?? ""],
     ["Mobile no.", p.mobile ?? ""],
@@ -127,6 +127,30 @@ export async function GET(req: Request, { params }: { params: Promise<{ report: 
       return file(buf, `${p.voucherNo}.pdf`, "pdf");
     }
 
+    case "payment-receipt": {
+      if (!can(ctx, "payments.read") || !can(ctx, "reports.export")) return deny("Not available to your role.");
+      const p = await getPayment(ctx, id);
+      if (!p) return deny("Not found.", 404);
+      if (p.isReversal || p.reversed || p.status === "CANCELLED" || p.status === "BOUNCED") return deny("This payment was cancelled, bounced or reversed, so there is no receipt for it.", 409);
+      const cheque = p.mode === "CHEQUE" || p.mode === "DD";
+      const paidTo = p.payeeType === "HOSPITAL"
+        ? [p.hospitalName, p.hospitalCity].filter(Boolean).join(", ")
+        : p.payeeName ?? "The applicant";
+      const buf = await toPdf(
+        <PaymentReceipt
+          org={await org()}
+          printed={printed(ctx, p.voucherNo)}
+          d={{
+            voucherNo: p.voucherNo, date: fmtDate(p.paymentDate), paidTo, amount: formatINR(p.amountPaise), words: amountInWords(p.amountPaise),
+            mode: PAYMENT_MODE[p.mode],
+            reference: cheque ? { label: "Cheque no", value: p.chequeNo ?? "" } : { label: "UTR / reference no", value: p.referenceNo ?? "" },
+            fromBank: p.bankName ?? "", caseNo: p.caseNo, patient: p.patient.displayName, towards: TOWARDS[p.towards],
+          }}
+        />,
+      );
+      await recordExport(ctx, { what: `payment receipt ${p.voucherNo}`, entityId: p.id, filters: {}, rows: 1, redacted: ctx.meetingMode });
+      return file(buf, `${p.voucherNo}-receipt.pdf`, "pdf");
+    }
     case "receipt": {
       if (!can(ctx, "donations.read") || !can(ctx, "reports.export")) return deny("Not available to your role.");
       const d = await getDonation(ctx, id);
