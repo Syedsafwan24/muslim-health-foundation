@@ -35,6 +35,7 @@ const { listPayments, getPayment } = await import("@/lib/db/queries/payments");
 const { getDonation, getDonor, listDonors } = await import("@/lib/db/queries/donations");
 const { getDashboard } = await import("@/lib/db/queries/analytics");
 const { runReport } = await import("@/lib/db/queries/reports");
+const { religionBreakdown } = await import("@/lib/db/queries/religion");
 const { LIST_EXPORTS } = await import("@/lib/export/lists");
 const { authorizeFileAccess } = await import("@/lib/db/queries/shared");
 const { revealIdentity } = await import("@/app/(app)/applications/actions");
@@ -362,5 +363,17 @@ describe("9. the global switch", () => {
     const before = await prisma.auditLog.count({ where: { action: "MEETING_MODE_TOGGLE" } });
     expect((await setMeetingMode({ on: true })).ok).toBe(false);
     expect(await prisma.auditLog.count({ where: { action: "MEETING_MODE_TOGGLE" } })).toBe(before);
+  });
+});
+
+describe("11. religion statistics", () => {
+  it("are only for the super admin, and never in meeting mode", async () => {
+    const rows = await religionBreakdown(ctxFor("SUPER_ADMIN", ids.admin), "patient");
+    expect(rows).not.toBeNull();
+    expect(rows!.reduce((s, r) => s + r.people, 0)).toBeGreaterThan(0);
+    expect(await religionBreakdown(ctxFor("SUPER_ADMIN", ids.admin, true), "patient")).toBeNull();
+    for (const role of ["GENERAL_SECRETARY", "COMMITTEE_MEMBER", "OPERATOR", "ACCOUNTANT", "VIEWER"] as Role[]) {
+      expect(await religionBreakdown(ctxFor(role, ids.admin), "patient")).toBeNull();
+    }
   });
 });

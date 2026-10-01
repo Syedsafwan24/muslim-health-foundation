@@ -2,12 +2,13 @@ import { Users } from "lucide-react";
 import { getViewContext } from "@/lib/auth/context";
 import { can } from "@/lib/auth/permissions";
 import { AGE_BAND_LABELS, listPeople, peopleFilters } from "@/lib/db/queries/people";
+import { religionBreakdown } from "@/lib/db/queries/religion";
 import { masterOptions } from "@/lib/db/queries/admin";
 import { readParams, type SearchParams } from "@/lib/params";
 import { fmtDate } from "@/lib/fy";
 import { formatINR } from "@/lib/money";
 import { GENDER } from "@/lib/labels";
-import { EmptyState, GenderCard, MoneyText, PageHeader, PersonCell, Pill, StatCard } from "@/components/app/bits";
+import { EmptyState, GenderCard, MoneyText, PageHeader, PersonCell, Pill, SheetPanel, StatCard } from "@/components/app/bits";
 import { DataTable } from "@/components/app/data-table";
 import { FilterBar, type Filter } from "@/components/app/filter-bar";
 import { ExportButton } from "@/components/app/export-button";
@@ -16,7 +17,7 @@ import { ExportButton } from "@/components/app/export-button";
 export async function PeopleList({ as, searchParams }: { as: "patient" | "applicant"; searchParams: SearchParams }) {
   const ctx = await getViewContext();
   const p = await readParams(searchParams);
-  const [data, m] = await Promise.all([listPeople(ctx, { as, ...peopleFilters(p) }), masterOptions()]);
+  const [data, m, religions] = await Promise.all([listPeople(ctx, { as, ...peopleFilters(p) }), masterOptions(), religionBreakdown(ctx, as)]);
   const title = as === "patient" ? "Patients" : "Applicants";
   const s = data.stats;
   const mm = ctx.meetingMode;
@@ -44,6 +45,26 @@ export async function PeopleList({ as, searchParams }: { as: "patient" | "applic
           ? <GenderCard male={s.male} female={s.female} />
           : <StatCard label="Repeat applicants" value={s.repeat.toLocaleString("en-IN")} rule="pending" />}
       </div>
+      {religions && religions.length > 0 && (
+        <SheetPanel title="By religion" className="mb-6" bodyClassName="p-0" action={<span className="text-caption text-slate-body">Only the super admin sees this</span>}>
+          <table className="w-full text-ui">
+            <caption className="sr-only">{title} by religion</caption>
+            <thead className="border-b border-rule text-left text-slate-body">
+              <tr><th scope="col" className="px-3 py-2 text-label font-medium">Religion</th><th scope="col" className="px-3 py-2 text-right text-label font-medium">{title}</th><th scope="col" className="px-3 py-2 text-right text-label font-medium">Cases</th><th scope="col" className="px-3 py-2 text-right text-label font-medium">Aid received</th></tr>
+            </thead>
+            <tbody>
+              {religions.map((r) => (
+                <tr key={r.religion} className="h-[var(--row-h)] border-b border-rule last:border-b-0">
+                  <td className="px-3">{r.religion}</td>
+                  <td className="px-3 text-right tabular-nums">{r.people.toLocaleString("en-IN")}</td>
+                  <td className="px-3 text-right tabular-nums">{r.cases.toLocaleString("en-IN")}</td>
+                  <td className="px-3 text-right font-mono"><MoneyText paise={r.paidPaise} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </SheetPanel>
+      )}
       <FilterBar filters={filters} />
       <DataTable
         caption={title}

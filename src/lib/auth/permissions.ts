@@ -44,6 +44,8 @@ export const CAPABILITIES = {
   "meetingMode.toggle": [SA],
   /** Delete a case, person or hospital entered by mistake (hidden, audited, only when unused). */
   "records.delete": [SA],
+  /** Statistics by religion: sensitive, super admin only, never in Meeting Mode or exports. */
+  "stats.religion": [SA],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

@@ -48,8 +48,10 @@ Notes:
   Confirm — see open questions.
 - Applicant and patient are often the same person. The form must have a **"Patient is the same
   as applicant"** checkbox that copies Block A into Block B.
-- "Religion" is on the form and must be storable, but it is sensitive. It is never shown on
-  dashboards, never used as a report dimension, and is hidden entirely in Meeting Mode.
+- "Religion" is on the form (a dropdown: Islam, Hinduism, Christianity, Jainism, Other) and is
+  sensitive. It is never shown on dashboards, never in exports or other roles' reports, and is
+  hidden entirely in Meeting Mode. The one exception (decided 2026-10-01): a "By religion" table
+  on the Patients and Applicants pages for the super admin only.
 
 ## 4. Actors and roles
 
