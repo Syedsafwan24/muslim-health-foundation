@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FormField, Select, TextArea, TextInput } from "@/components/app/inputs";
-import { GENDER, ID_TYPE, MARITAL, options } from "@/lib/labels";
+import { GENDER, ID_TYPE, MARITAL, options, religionOptions } from "@/lib/labels";
 import { personSchema, type PersonInput } from "@/lib/validators";
 import type { PersonFull } from "@/lib/redact";
 import { mergePersons, setWatchFlag, updatePerson } from "../actions";
@@ -73,7 +73,7 @@ function EditPerson({ p, areas, done }: { p: PersonFull; areas: { id: string; na
         <FormField id="p-status" label="Status"><Select id="p-status" {...register("maritalStatus")} options={options(MARITAL)} /></FormField>
         <FormField id="p-age" label="Age" error={errors.ageYears?.message}><TextInput id="p-age" inputMode="numeric" {...register("ageYears")} /></FormField>
         <FormField id="p-gender" label="Gender"><Select id="p-gender" {...register("gender", { setValueAs: (v) => v || null })} options={options(GENDER)} placeholder="Choose" /></FormField>
-        <FormField id="p-religion" label="Religion"><TextInput id="p-religion" {...register("religion")} /></FormField>
+        <FormField id="p-religion" label="Religion"><Select id="p-religion" {...register("religion")} options={religionOptions(p.religion)} placeholder="Choose" /></FormField>
         <FormField id="p-idtype" label="ID type"><Select id="p-idtype" {...register("idType")} options={options(ID_TYPE)} /></FormField>
         <FormField id="p-idno" label="ID number" hint="Leave blank to keep the stored number"><TextInput id="p-idno" {...register("idNumber")} /></FormField>
       </div>

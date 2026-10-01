@@ -4,7 +4,7 @@ import { subMonths } from "date-fns";
 import { includeDeleted, prisma } from "@/lib/db";
 import { can } from "@/lib/auth/permissions";
 import { currentAge, personRef, redactPerson, scrubNames, toAgeBand, type PersonRef, type PersonView, type ViewContext } from "@/lib/redact";
-import { getSetting } from "@/lib/settings";
+import { CASE_DOCUMENTS } from "@/lib/labels";
 import { attachmentView, isMaskedFor, LIVE_PAYMENT, pageArgs, paidByApplication, PAGE_SIZE, type AttachmentView, type Page } from "./shared";
 import { paymentView, type PaymentView } from "./payments";
 
@@ -61,8 +61,11 @@ export const CHECKLIST: Record<string, { label: string; types: string[] }> = {
   AUTHORISATION_FORM: { label: "Authorisation form", types: ["AUTHORISATION_FORM"] },
 };
 
+/** Documents a case is reminded about until they are uploaded (none blocks saving). */
+const CASE_DOCUMENT_TYPES: string[] = CASE_DOCUMENTS.map((d) => d.type);
+
 export async function missingDocuments(presentTypes: string[], required?: string[]): Promise<string[]> {
-  required ??= await getSetting("documents.required");
+  required ??= CASE_DOCUMENT_TYPES;
   return required.filter((k) => CHECKLIST[k] && !CHECKLIST[k].types.some((t) => presentTypes.includes(t))).map((k) => CHECKLIST[k].label);
 }
 
@@ -125,7 +128,7 @@ function orderBy(ctx: ViewContext, sort: ApplicationSort): Prisma.ApplicationOrd
 
 export async function listApplications(ctx: ViewContext, f: ApplicationFilters) {
   const and: Prisma.ApplicationWhereInput[] = [buildWhere(ctx, f)];
-  if (f.pendingDocs) and.push({ status: { notIn: ["DRAFT", "CLOSED"] } }, missingDocsWhere(await getSetting("documents.required")));
+  if (f.pendingDocs) and.push({ status: { notIn: ["DRAFT", "CLOSED"] } }, missingDocsWhere(CASE_DOCUMENT_TYPES));
   if (f.repeat) {
     const recent = await prisma.application.groupBy({ by: ["applicantId"], where: { applicationDate: { gte: subMonths(new Date(), 12) } }, having: { applicantId: { _count: { gt: 1 } } } });
     and.push({ applicantId: { in: recent.map((r) => r.applicantId) } });
@@ -369,7 +372,7 @@ export async function getApplicationForEdit(ctx: ViewContext, id: string) {
 /** Counts for the dashboard "needs attention" list. */
 export async function attentionCounts() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 864e5);
-  const required = await getSetting("documents.required");
+  const required = CASE_DOCUMENT_TYPES;
   const [drafts, toPay, unclearedCheques, missingDocs] = await Promise.all([
     prisma.application.count({ where: { status: "DRAFT" } }),
     prisma.application.count({ where: { status: { in: ["APPROVED", "PARTIALLY_APPROVED", "PAYMENT_PENDING"] } } }),

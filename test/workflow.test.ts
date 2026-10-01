@@ -72,10 +72,7 @@ describe("an approved case from entry to paid", () => {
     expect(await prisma.auditLog.count()).toBeGreaterThanOrEqual(before + 2); // person + application
   });
 
-  it("cannot be saved as a case without the four documents and the approved amount", async () => {
-    const noDocs = await apps.submitApplication({ id: appId, payment: null });
-    expect(noDocs.ok).toBe(false);
-    await attachRequired(appId);
+  it("cannot be saved as a case without the approved amount; documents can come later", async () => {
     const noAmount = await apps.submitApplication({ id: appId, payment: null });
     expect(noAmount.ok).toBe(false);
     if (!noAmount.ok) expect(noAmount.error).toMatch(/approved amount/);

@@ -289,7 +289,7 @@ export const userSchema = z.object({
 export const REQUIRED = {
   applicant: { fullName: "name", fatherName: "father name", addressLine: "address", ageYears: "age", gender: "gender", mobile: "mobile no." },
   patient: { fullName: "name", ageYears: "age", gender: "gender" },
-  case: { diseaseId: "major problem of the patient", hospitalId: "name of the hospital" },
+  case: { diseaseId: "major problem of the patient", approxExpensePaise: "approx hospital expenses", hospitalId: "name of the hospital" },
 } as const;
 
 /** Keys of `fields` that are empty in `values`. */

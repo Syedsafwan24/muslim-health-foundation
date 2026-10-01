@@ -75,6 +75,12 @@ export const AMOUNT_BANDS = {
 } as const satisfies Record<string, { label: string; min: bigint | null; max: bigint | null }>;
 export type AmountBand = keyof typeof AMOUNT_BANDS;
 
+/** Religion choices on the form: the faiths common in and around Bhatkal, then Other. */
+export const RELIGIONS = ["Islam", "Hinduism", "Christianity", "Jainism", "Other"] as const;
+/** The dropdown options, keeping an older typed-in value selectable. */
+export const religionOptions = (current?: string | null) =>
+  [...RELIGIONS, ...(current && !(RELIGIONS as readonly string[]).includes(current) ? [current] : [])].map((r) => ({ value: r, label: r }));
+
 export const FUND_TYPE: Record<FundType, string> = { ZAKAT: "Zakat", SADAQAH: "Sadaqah", GENERAL: "General", OTHER: "Other" };
 
 export const ID_TYPE: Record<IdType, string> = {
@@ -94,9 +100,12 @@ export const options = <K extends string>(m: Record<K, string>) =>
   (Object.entries(m) as [K, string][]).map(([value, label]) => ({ value, label }));
 
 /** The documents collected for every case, in the order the office gathers them. */
+/**
+ * The documents collected for a case. None is required to save it: a case can be recorded first
+ * and its documents uploaded later. Missing ones are shown as a reminder on the case.
+ */
 export const CASE_DOCUMENTS = [
   { type: "GOVT_ID", label: "Aadhaar card or ration card", hint: "Photo of the Aadhaar card or ration card" },
-  { type: "MHF_APPLICATION_FORM", label: "MHF form", hint: "Photo of the filled and signed MHF form" },
   { type: "HOSPITAL_LETTER", label: "Hospital letter", hint: "Letter or estimate from the hospital" },
   { type: "HOSPITAL_BILL", label: "Hospital bill or receipt", hint: "Bill or receipt from the hospital" },
 ] as const satisfies readonly { type: AttachmentType; label: string; hint: string }[];

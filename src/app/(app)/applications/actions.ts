@@ -17,7 +17,7 @@ import { mentionsNames } from "@/lib/redact";
 import { createPayment, lockApplication, moveStatus, savePerson, syncPaymentStatus } from "@/lib/db/writes";
 import { LIVE_PAYMENT } from "@/lib/db/queries/shared";
 import { formatINR } from "@/lib/money";
-import { missingDocuments, priorAid } from "@/lib/db/queries/applications";
+import { priorAid } from "@/lib/db/queries/applications";
 import { findDuplicates, getPersonForEdit } from "@/lib/db/queries/people";
 import { EDITABLE, STATUS_LABEL } from "@/lib/applications/transitions";
 import {
@@ -158,8 +158,6 @@ export const submitApplication = action("applications.write", recordCaseSchema, 
     ...(a.approvedAmountPaise ? [] : ["approved amount (INR)"]),
   ];
   if (gaps.length) throw new UserError(`Fill in the ${gaps.join(", ")} before saving the case.`);
-  const missing = await missingDocuments(a.attachments.map((x) => x.type));
-  if (missing.length) throw new UserError(`Upload the ${missing.join(", ")} before saving the case.`);
 
   const fy = await fiscalYearFor(tx, a.applicationDate);
   const { caseNo, serial } = await nextCaseNo(tx, fy);

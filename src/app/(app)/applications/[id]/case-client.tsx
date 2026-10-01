@@ -234,7 +234,7 @@ function Slot({ n, doc, applicationId, files, maxMb, canUpload, canVerify, canDe
         {done ? <Check className="size-4" /> : n}
       </span>
       <div className="min-w-48 flex-1">
-        <p className="text-body font-medium text-navy-900">{doc.label} <span className="text-rejected">*</span></p>
+        <p className="text-body font-medium text-navy-900">{doc.label}</p>
         <p className="text-caption text-slate-body">
           {done ? `${files.length} ${files.length === 1 ? "file" : "files"} uploaded` : doc.hint}
           <span className="sr-only">{done ? " — uploaded" : " — not uploaded yet"}</span>

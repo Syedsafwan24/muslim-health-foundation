@@ -12,7 +12,7 @@ import { FormField, MoneyInput, Select, TextInput } from "@/components/app/input
 import { applicationSchema, emptyPerson, missingRequired, paymentEntrySchema, REQUIRED, type ApplicationInput, type PaymentEntryInput, type PersonInput } from "@/lib/validators";
 import { formatINR } from "@/lib/money";
 import { toDateInput } from "@/lib/fy";
-import { GENDER, MARITAL, options, PAYMENT_MODE, RELATION, TOWARDS } from "@/lib/labels";
+import { GENDER, MARITAL, options, PAYMENT_MODE, RELATION, religionOptions, TOWARDS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import { checkDuplicates, loadPerson, saveApplication, submitApplication } from "./actions";
 import { useAddDialog, type AddKind } from "./add-dialog";
@@ -313,12 +313,12 @@ export function ApplicationForm({
             )}
             {step === PAY && !isDraft && id && <Button type="button" variant="outline" onClick={() => router.push(`/applications/${id}`)}>Open case</Button>}
             {step === PAY && isDraft && id && (
-              <Button type="button" disabled={recording || !!docs?.missing.length} onClick={() => startRecord(async () => { await recordRef.current?.(); })}>Save case</Button>
+              <Button type="button" disabled={recording} onClick={() => startRecord(async () => { await recordRef.current?.(); })}>Save case</Button>
             )}
           </div>
         </div>
         {step === PAY && isDraft && !!docs?.missing.length && (
-          <p className="mt-2 text-right text-caption text-pending">Upload the {docs.missing.join(", ")} before saving the case.</p>
+          <p className="mt-2 text-right text-caption text-slate-body">Not uploaded yet: {docs.missing.join(", ")}. You can add them later from the case.</p>
         )}
       </form>
 
@@ -402,7 +402,7 @@ function PersonBlock({ form, block, known, onPick, onClear }: {
           </FormField>
         </div>
         <FormField id={id("religion")} label="Religion">
-          <TextInput id={id("religion")} {...register(f("religion"))} />
+          <Select id={id("religion")} {...register(f("religion"))} options={religionOptions(form.getValues(f("religion")) as string | null)} placeholder="Choose" />
         </FormField>
         <FormField id={id("mobile")} label="Mobile no." error={e.mobile?.message} required={req("mobile")}>
           <TextInput id={id("mobile")} inputMode="tel" autoComplete="off" className="font-mono" {...register(f("mobile"))} invalid={!!e.mobile} />
@@ -473,8 +473,8 @@ function CaseBlock({ form, masters, nameWarning, ask }: { form: UseFormReturn<Ap
             <AlertTriangle className="size-4" aria-hidden /> The major problem mentions the applicant or patient by name. Write “the patient” instead, so it stays hidden in meeting mode.
           </p>
         )}
-        <FormField id="approxExpensePaise" label="Approx hospital expenses">
-          <Controller control={control} name="case.approxExpensePaise" render={({ field }) => <MoneyInput id="approxExpensePaise" value={field.value as bigint | null} onChange={field.onChange} />} />
+        <FormField id="approxExpensePaise" label="Approx hospital expenses" error={e.approxExpensePaise?.message} required>
+          <Controller control={control} name="case.approxExpensePaise" render={({ field }) => <MoneyInput id="approxExpensePaise" value={field.value as bigint | null} onChange={field.onChange} invalid={!!e.approxExpensePaise} />} />
         </FormField>
         <FormField id="hospitalId" label="Name of the hospital" error={e.hospitalId?.message} required>
           <Select id="hospitalId" {...register("case.hospitalId")} options={masters.hospitals.map((h) => ({ value: h.id, label: h.label }))} placeholder="Choose the hospital" invalid={!!e.hospitalId} onCreate={ask("hospital")} createLabel={(t) => (t ? `Add new hospital “${t}”` : "Add new hospital")} />
@@ -489,7 +489,7 @@ function DocumentsStep({ id, docs, maxMb }: { id: string; docs?: DocState; maxMb
     <div className="space-y-4">
       <div>
         <h2 className="text-h2">Documents</h2>
-        <p className="mt-1 text-ui text-slate-body">Upload each of these four. A photo from the phone is fine.</p>
+        <p className="mt-1 text-ui text-slate-body">Upload what you have now. A photo from the phone is fine, and anything missing can be added later from the case.</p>
       </div>
       <DocumentSlots applicationId={id} files={docs?.files ?? []} maxMb={maxMb} canUpload canVerify={false} canDelete />
     </div>

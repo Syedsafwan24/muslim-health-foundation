@@ -11,7 +11,7 @@ export const SETTING_DEFAULTS = {
   "org.email": "",
   "org.registrationNo": "",
   "org.80gNo": "",
-  "documents.required": ["GOVT_ID", "MHF_APPLICATION_FORM", "HOSPITAL_LETTER", "HOSPITAL_BILL"] as string[],
+  "documents.required": ["GOVT_ID", "HOSPITAL_LETTER", "HOSPITAL_BILL"] as string[],
   "documents.maxFileMb": 15,
   "documents.maxFilesPerCase": 40,
 } as const;

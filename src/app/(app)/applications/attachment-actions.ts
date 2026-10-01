@@ -20,7 +20,7 @@ const MAX_EDGE = 2500;
 /** Decompression-bomb guard: a tiny file can declare a huge canvas. 50 MP is well above any phone camera. */
 const MAX_INPUT_PIXELS = 50_000_000;
 /** Every case document (and a receipt standing in for the bill) carries the patient's name. */
-const IDENTITY_TYPES = new Set<AttachmentType>([...CASE_DOCUMENTS.map((d) => d.type), "RECEIPT"]);
+const IDENTITY_TYPES = new Set<AttachmentType>([...CASE_DOCUMENTS.map((d) => d.type), "RECEIPT", "MHF_APPLICATION_FORM"]);
 
 /** Identify the file by its bytes, not by the name or the browser's claimed type. */
 function sniff(buf: Buffer): "pdf" | "jpeg" | "png" | "webp" | "heic" | null {
