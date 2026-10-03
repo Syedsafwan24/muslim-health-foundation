@@ -175,7 +175,7 @@ function SliceTable({ title, data }: { title: string; data: Slice[] }) {
   const th = "px-3 py-2 text-label font-medium";
   return (
     <SheetPanel title={title} bodyClassName="p-0">
-      <div className="thin-scroll max-h-80 overflow-auto">
+      <div className="overflow-x-auto">
         <table className="w-full text-ui">
           <caption className="sr-only">{title}</caption>
           <thead className="sticky top-0 border-b border-rule bg-sheet text-left text-slate-body">

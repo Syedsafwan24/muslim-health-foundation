@@ -30,7 +30,7 @@ export default async function MastersSettings() {
         </ul>
       </SheetPanel>
       <SheetPanel title="Diseases" bodyClassName="p-0">
-        <ul className="max-h-[32rem] divide-y divide-rule overflow-auto">
+        <ul className="divide-y divide-rule">
           {m.diseases.map((d) => <MasterRow key={d.id} kind="disease" id={d.id} name={d.name} label={`${d.categoryName} — ${d.name}`} uses={d.uses} extra={{ categoryId: d.categoryId, isChronic: d.isChronic }} categories={cats} readOnly={ro} />)}
         </ul>
         {!ro && <ul className="border-t border-rule"><MasterRow kind="disease" categories={cats} readOnly={false} /></ul>}

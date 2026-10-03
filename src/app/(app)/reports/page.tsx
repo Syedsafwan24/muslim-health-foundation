@@ -88,7 +88,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
               {t.rows.length === 0 ? (
                 <p className="px-5 py-6 text-ui text-slate-body">Nothing to report for this period.</p>
               ) : (
-                <div className="max-h-[36rem] overflow-auto">
+                <div className="overflow-x-auto">
                   <table className="w-full text-ui">
                     <caption className="sr-only">{t.title}</caption>
                     <thead className="sticky top-0 bg-navy-700 text-left text-white">

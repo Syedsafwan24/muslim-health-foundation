@@ -114,7 +114,7 @@ export function DataTable({
       ) : (
         <>
           {/* ≥768px: table */}
-          <div className="hidden max-h-[70vh] overflow-auto md:block">
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full border-collapse text-ui">
               <caption className="sr-only">{caption}</caption>
               <thead className="sticky top-0 z-10 bg-navy-700 text-left text-white">
