@@ -48,7 +48,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const footer = [
     can(ctx, "audit.read") && { href: "/activity", label: "Activity log", icon: "activity" },
     can(ctx, "settings.read") && { href: "/settings", label: "Settings", icon: "settings" },
-    { href: "/account/password", label: "Change password", icon: "password" },
   ].filter(Boolean) as NavItem[];
 
   const bannerReason = ctx.meetingMode ? (ctx.globalMeetingMode ? "global" : "account") : null;

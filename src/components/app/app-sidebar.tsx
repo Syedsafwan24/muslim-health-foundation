@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BarChart3, Banknote, Building2, ClipboardList, FileText, HandCoins, KeyRound, LayoutDashboard, LogOut, Receipt,
+  BarChart3, Banknote, Building2, ChevronDown, ClipboardList, FileText, HandCoins, KeyRound, LayoutDashboard, LogOut, Receipt,
   Settings, Stethoscope, UserRound, Users, Vault, History,
 } from "lucide-react";
 import {
@@ -30,11 +30,23 @@ export function AppSidebar({ groups, footer, user }: { groups: NavGroup[]; foote
     if (window.innerWidth < 1024) setOpen(false);
   }, [setOpen]);
   const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  // When the menu is taller than the screen, say so: a "More below" hint that scrolls to the rest.
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState(false);
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const check = () => setMore(el.scrollTop + el.clientHeight < el.scrollHeight - 4);
+    check();
+    el.addEventListener("scroll", check, { passive: true });
+    window.addEventListener("resize", check);
+    return () => { el.removeEventListener("scroll", check); window.removeEventListener("resize", check); };
+  }, []);
   const renderItem = (it: NavItem) => {
     const Icon = ICONS[it.icon];
     return (
       <SidebarMenuItem key={it.href}>
-        <SidebarMenuButton asChild isActive={active(it.href)} tooltip={it.label} className="relative h-10 data-[active=true]:before:absolute data-[active=true]:before:inset-y-1 data-[active=true]:before:left-0 data-[active=true]:before:w-[3px] data-[active=true]:before:rounded-full data-[active=true]:before:bg-white group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:before:hidden">
+        <SidebarMenuButton asChild isActive={active(it.href)} tooltip={it.label} className="relative h-9 data-[active=true]:before:absolute data-[active=true]:before:inset-y-1 data-[active=true]:before:left-0 data-[active=true]:before:w-[3px] data-[active=true]:before:rounded-full data-[active=true]:before:bg-white group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:before:hidden">
           <Link href={it.href}>
             <Icon aria-hidden />
             <span>{it.label}</span>
@@ -55,13 +67,25 @@ export function AppSidebar({ groups, footer, user }: { groups: NavGroup[]; foote
           </span>
         </Link>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent ref={contentRef} className="gap-0">
         {groups.map((g, i) => (
-          <SidebarGroup key={g.label ?? i}>
-            {g.label && <SidebarGroupLabel className="text-caption text-white/60">{g.label}</SidebarGroupLabel>}
+          <SidebarGroup key={g.label ?? i} className="py-1">
+            {g.label && <SidebarGroupLabel className="h-7 text-caption text-white/60">{g.label}</SidebarGroupLabel>}
             <SidebarMenu>{g.items.map(renderItem)}</SidebarMenu>
           </SidebarGroup>
         ))}
+        {more && (
+          <div className="sticky bottom-0 mt-auto flex justify-center bg-gradient-to-t from-sidebar via-sidebar/90 to-transparent pb-2 pt-6">
+            <button
+              type="button"
+              onClick={() => contentRef.current?.scrollBy({ top: 240, behavior: "smooth" })}
+              className="flex items-center gap-1 rounded-full bg-white/15 px-3 py-1 text-caption text-white hover:bg-white/25 group-data-[collapsible=icon]:px-1.5"
+            >
+              <span className="group-data-[collapsible=icon]:hidden">More below</span>
+              <ChevronDown aria-hidden className="size-4" />
+            </button>
+          </div>
+        )}
       </SidebarContent>
       <SidebarFooter>
         <SidebarSeparator />
@@ -74,8 +98,11 @@ export function AppSidebar({ groups, footer, user }: { groups: NavGroup[]; foote
             <span className="block truncate text-ui text-white">{user.name}</span>
             <span className="block truncate text-caption text-white/60">{user.role}</span>
           </span>
+          <Link href="/account/password" className="grid size-9 place-items-center rounded-control text-white/80 hover:bg-white/10" aria-label="Change password" title="Change password">
+            <KeyRound aria-hidden className="size-4" />
+          </Link>
           <form action={signOutAction}>
-            <button type="submit" className="grid size-9 place-items-center rounded-control text-white/80 hover:bg-white/10" aria-label="Sign out">
+            <button type="submit" className="grid size-9 place-items-center rounded-control text-white/80 hover:bg-white/10" aria-label="Sign out" title="Sign out">
               <LogOut aria-hidden className="size-4" />
             </button>
           </form>
