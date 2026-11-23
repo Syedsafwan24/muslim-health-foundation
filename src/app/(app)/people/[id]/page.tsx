@@ -87,7 +87,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             <dl className="space-y-3">
               <Field label="Father name">{p.fatherName}</Field>
               <Field label={spouseLabel(p.gender)}>{p.husbandName}</Field>
-              <Field label="Status">{MARITAL[p.maritalStatus]}</Field>
+              <Field label="Marital status">{MARITAL[p.maritalStatus]}</Field>
               <Field label="Age · gender">{[p.age != null ? `${p.age} years` : null, p.gender && GENDER[p.gender]].filter(Boolean).join(" · ")}</Field>
               <Field label="Address">{[p.addressLine, p.areaName, p.city, p.pincode].filter(Boolean).join(", ")}</Field>
               <Field label="Mobile no." mono>{[p.mobile, p.altMobile].filter(Boolean).join(" · ")}</Field>

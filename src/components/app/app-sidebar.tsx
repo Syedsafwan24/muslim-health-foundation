@@ -62,7 +62,7 @@ export function AppSidebar({ groups, footer, user }: { groups: NavGroup[]; foote
         <Link href="/dashboard" className="flex items-center gap-3 px-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-white/80 text-caption font-semibold text-white">MHF</span>
           <span className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
-            <span className="text-ui font-semibold text-white">Muslim Health Foundation</span>
+            <span className="text-ui font-semibold text-white">Muslim Health Foundation<sup aria-label="registered">®</sup></span>
             <span className="text-caption text-white/60">Bhatkal</span>
           </span>
         </Link>

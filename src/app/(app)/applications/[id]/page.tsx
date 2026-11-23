@@ -149,7 +149,7 @@ function PersonBlock({ title, p, extra }: { title: string; p: PersonView; extra?
         <Field label="Father name">{p.fatherName}</Field>
         <Field label={spouseLabel(p.gender)}>{p.husbandName}</Field>
         <Field label="Address" className="sm:col-span-2">{p.addressLine}</Field>
-        <Field label="Status">{MARITAL[p.maritalStatus]}</Field>
+        <Field label="Marital status">{MARITAL[p.maritalStatus]}</Field>
         <Field label="Age · gender">{[p.age != null ? `${p.age} years` : null, p.gender && GENDER[p.gender]].filter(Boolean).join(" · ")}</Field>
         <Field label="Religion">{p.religion}</Field>
         <Field label="Mobile no." mono>{p.mobile}</Field>

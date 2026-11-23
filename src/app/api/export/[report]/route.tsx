@@ -41,11 +41,11 @@ const printed = (ctx: ViewContext, reference: string): Printed => ({ reference, 
 
 function personRows(p: PersonView): [string, string][] {
   if (p.isRedacted) {
-    return [["Person code", p.personCode], ["Gender", p.gender ? GENDER[p.gender] : "—"], ["Age band", p.ageBand ?? "—"], ["Status", MARITAL[p.maritalStatus]], ["Identity", "Hidden — meeting mode"]];
+    return [["Person code", p.personCode], ["Gender", p.gender ? GENDER[p.gender] : "—"], ["Age band", p.ageBand ?? "—"], ["Marital status", MARITAL[p.maritalStatus]], ["Identity", "Hidden — meeting mode"]];
   }
   return [
     ["Name", p.fullName], ["Person code", p.personCode], ["Father name", p.fatherName ?? ""], [spouseLabel(p.gender), p.husbandName ?? ""],
-    ["Address", [p.addressLine, p.areaName, p.city, p.pincode].filter(Boolean).join(", ")], ["Status", MARITAL[p.maritalStatus]],
+    ["Address", [p.addressLine, p.areaName, p.city, p.pincode].filter(Boolean).join(", ")], ["Marital status", MARITAL[p.maritalStatus]],
     ["Age", p.age != null ? String(p.age) : ""], ["Gender", p.gender ? GENDER[p.gender] : ""], ["Religion", p.religion ?? ""],
     ["Mobile no.", p.mobile ?? ""],
   ];

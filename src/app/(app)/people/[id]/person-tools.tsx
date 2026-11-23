@@ -70,7 +70,7 @@ function EditPerson({ p, areas, done }: { p: PersonFull; areas: { id: string; na
         <FormField id="p-alt" label="Alternate mobile" error={errors.altMobile?.message}><TextInput id="p-alt" inputMode="tel" {...register("altMobile")} /></FormField>
         <FormField id="p-area" label="Area"><Select id="p-area" {...register("areaId")} options={areas.map((a) => ({ value: a.id, label: a.name }))} placeholder="Choose the area" /></FormField>
         <FormField id="p-addr" label="Address" className="sm:col-span-2"><TextInput id="p-addr" {...register("addressLine")} /></FormField>
-        <FormField id="p-status" label="Status"><Select id="p-status" {...register("maritalStatus")} options={options(MARITAL)} /></FormField>
+        <FormField id="p-status" label="Marital status"><Select id="p-status" {...register("maritalStatus")} options={options(MARITAL)} /></FormField>
         <FormField id="p-age" label="Age" error={errors.ageYears?.message}><TextInput id="p-age" inputMode="numeric" {...register("ageYears")} /></FormField>
         <FormField id="p-gender" label="Gender"><Select id="p-gender" {...register("gender", { setValueAs: (v) => v || null })} options={options(GENDER)} placeholder="Choose" /></FormField>
         <FormField id="p-religion" label="Religion"><Select id="p-religion" {...register("religion")} options={religionOptions(p.religion)} placeholder="Choose" /></FormField>

@@ -260,7 +260,8 @@ export function ApplicationForm({
               <label className="flex items-center gap-3 rounded-control border border-rule bg-paper px-4 py-3 text-body">
                 <input type="checkbox" className="size-4" checked={!!same} onChange={(e) => {
                   setValue("patientIsApplicant", e.target.checked, { shouldDirty: true });
-                  if (e.target.checked) setValue("relation", "SELF");
+                  // Drop the hidden patient block, or its blank name fails validation and Next does nothing.
+                  if (e.target.checked) { setValue("relation", "SELF"); setValue("patient", null); form.clearErrors("patient"); }
                   else if (!getValues("patient")) setValue("patient", emptyPerson());
                 }} />
                 Patient is the same as the applicant
@@ -392,7 +393,7 @@ function PersonBlock({ form, block, known, onPick, onClear }: {
           <TextInput id={id("addressLine")} autoComplete="off" {...register(f("addressLine"))} invalid={!!e.addressLine} />
         </FormField>
         <div className="grid grid-cols-3 gap-4 lg:col-span-2">
-          <FormField id={id("maritalStatus")} label="Status">
+          <FormField id={id("maritalStatus")} label="Marital status">
             <Select id={id("maritalStatus")} {...register(f("maritalStatus"))} options={options(MARITAL)} />
           </FormField>
           <FormField id={id("ageYears")} label="Age" error={e.ageYears?.message} required={req("ageYears")}>
