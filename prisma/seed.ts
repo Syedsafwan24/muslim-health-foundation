@@ -236,7 +236,7 @@ async function main() {
   // 40 this FY, 14 last FY (paid or closed) so the year-on-year figures have something to compare.
   const put = await storage();
   const statuses: ApplicationStatus[] = [
-    ...Array(3).fill("DRAFT"), ...Array(12).fill("APPROVED"), ...Array(8).fill("PAYMENT_PENDING"),
+    ...Array(3).fill("DRAFT"), ...Array(10).fill("APPROVED"), ...Array(2).fill("REJECTED"), ...Array(8).fill("PAYMENT_PENDING"),
     ...Array(12).fill("PAID"), ...Array(5).fill("CLOSED"),
   ];
   const plan: { status: ApplicationStatus; date: Date }[] = [
@@ -277,6 +277,9 @@ async function main() {
         approxExpensePaise: rupees(approx),
         status,
         approvedAmountPaise: rupees(approved),
+        // Paid cases have a closed file; rejected ones carry the remarks.
+        lockedAt: ["PAYMENT_PENDING", "PAID", "CLOSED"].includes(status) ? date : null,
+        rejectionReason: status === "REJECTED" ? "Treatment is covered by the government scheme (Ayushman Bharat)." : null,
         decidedById: isDraft ? null : gensec.id,
         decidedAt: isDraft ? null : date,
         createdById: operator.id,
@@ -288,6 +291,7 @@ async function main() {
     if (!isDraft) {
       history.push(["DRAFT", "APPROVED"]);
       if (status === "PAYMENT_PENDING") history.push(["APPROVED", "PAYMENT_PENDING"]);
+      if (status === "REJECTED") history.push(["APPROVED", "REJECTED"]);
       if (status === "PAID" || status === "CLOSED") history.push(["APPROVED", "PAID"]);
       if (status === "CLOSED") history.push(["PAID", "CLOSED"]);
     }

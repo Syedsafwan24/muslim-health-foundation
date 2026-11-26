@@ -115,25 +115,30 @@ approved `#3FB28D`, pending `#E0A44A`, rejected `#E0707A`, redacted `#9A8BE0`.
 
 | Role | Family | Why |
 |---|---|---|
-| Interface + body | **IBM Plex Sans** | true tabular figures, institutional without being cold, excellent at 13–15px, and a real bureaucratic-document lineage that suits a trust's register |
+| Interface + body | **Atkinson Hyperlegible Next** | designed by the Braille Institute for low-vision readers: unambiguous letterforms (I/l/1, O/0, rn/m), open counters, tabular figures (`tnum`) and ₹. Chosen because the client asked for a face that elderly trustees and applicants read easily (Nov 2026; replaced IBM Plex Sans) |
 | Identifiers and money columns | **IBM Plex Mono** | case numbers, cheque numbers, voucher numbers, person codes and right-aligned amount columns only. Never for labels or body copy. |
 
-Self-host both as woff2 in `public/fonts`. No runtime Google Fonts request.
+Self-host both as woff2 in `public/fonts` (latin + latin-ext; ₹ lives in latin-ext). No runtime Google Fonts request.
+PDFs use static TTF instances of the same faces in `src/lib/pdf/fonts` (react-pdf cannot read woff2).
 
 ### Scale
 
 | Token | Size / line-height | Weight | Use |
 |---|---|---|---|
 | `display` | 36 / 40 | 600 | the amount on a case header, dashboard hero figures |
-| `h1` | 24 / 32 | 600 | page title |
-| `h2` | 19 / 28 | 600 | section title |
-| `h3` | 16 / 24 | 600 | sheet title, dialog title |
-| `body` | 15 / 24 | 400 | prose, form values |
-| `ui` | 14 / 20 | 400/500 | table cells, inputs, buttons, nav |
-| `label` | 13 / 18 | 500 | field labels, in sentence case |
-| `caption` | 12 / 16 | 400 | helper text, timestamps, axis labels |
-| `mono-sm` | 13 / 18 | 450 | case numbers, codes |
-| `amount` | 15 / 20 | 500, tabular | money in tables, right-aligned |
+| `h1` | 26 / 34 | 600 | page title |
+| `h2` | 21 / 30 | 600 | section title |
+| `h3` | 18 / 26 | 600 | sheet title, dialog title |
+| `body` | 17 / 26 | 400 | prose, form values |
+| `ui` | 16 / 24 | 400/500 | table cells, inputs, buttons, nav |
+| `label` | 15 / 20 | 500 | field labels, in sentence case |
+| `caption` | 14 / 20 | 400 | helper text, timestamps, axis labels |
+| `mono-sm` | 15 / 20 | 450 | case numbers, codes |
+| `amount` | 17 / 24 | 500, tabular | money in tables, right-aligned |
+
+The scale was raised ~2px across the board for older readers (Nov 2026). Tailwind's `text-xs/sm/base`
+(used only inside `components/ui`) are mapped to caption/ui/body so shadcn primitives follow it. Table
+rows are 48px (40px compact).
 
 Rules:
 - `font-variant-numeric: tabular-nums` on every numeric column, amount and date.
@@ -158,7 +163,7 @@ Rules:
 Elevation: `--shadow-sheet` on sheets (barely visible, it only separates white from white),
 `--shadow-pop` on popovers/dialogs/dropdowns. There is no third level.
 
-Density: a user-level setting `comfortable` (default, 44px rows) / `compact` (36px rows) applied
+Density: a user-level setting `comfortable` (default, 48px rows) / `compact` (40px rows) applied
 as a `data-density` attribute on `<html>`. Clerks doing bulk entry will use compact.
 
 ---

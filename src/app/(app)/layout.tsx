@@ -22,10 +22,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     {
       items: [
         { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
-        { href: "/applications", label: "Applications", icon: "applications", badge: counts.applicationsBadge },
-        { href: "/patients", label: "Patients", icon: "patients" },
-        { href: "/applicants", label: "Applicants", icon: "applicants" },
-      ] satisfies NavItem[],
+        can(ctx, "applications.read") && { href: "/applications", label: "Applications", icon: "applications", badge: counts.applicationsBadge },
+        can(ctx, "people.read") && { href: "/patients", label: "Patients", icon: "patients" },
+        can(ctx, "people.read") && { href: "/applicants", label: "Applicants", icon: "applicants" },
+      ].filter(Boolean) as NavItem[],
     },
     {
       label: "Money",

@@ -7,12 +7,14 @@ import type { ReactElement } from "react";
 // so a leaked paper can be traced (docs/03 §8).
 
 const dir = path.join(process.cwd(), "src", "lib", "pdf", "fonts");
+// Atkinson Hyperlegible Next, the interface face (easy for elderly readers): static TTF instances
+// because react-pdf cannot read woff2. Identifiers stay in IBM Plex Mono.
 Font.register({
-  family: "Plex",
+  family: "Sans",
   fonts: [
-    { src: path.join(dir, "IBMPlexSans-Regular.woff"), fontWeight: 400 },
-    { src: path.join(dir, "IBMPlexSans-Medium.woff"), fontWeight: 500 },
-    { src: path.join(dir, "IBMPlexSans-SemiBold.woff"), fontWeight: 600 },
+    { src: path.join(dir, "AtkinsonHyperlegibleNext-Regular.ttf"), fontWeight: 400 },
+    { src: path.join(dir, "AtkinsonHyperlegibleNext-Medium.ttf"), fontWeight: 500 },
+    { src: path.join(dir, "AtkinsonHyperlegibleNext-SemiBold.ttf"), fontWeight: 600 },
   ],
 });
 Font.register({ family: "PlexMono", src: path.join(dir, "IBMPlexMono-Regular.ttf") });
@@ -22,30 +24,43 @@ const NAVY = "#1B2A5B";
 const INK = "#16213D";
 const SLATE = "#5A6683";
 const RULE = "#D7DCE7";
-const REDACTED = "#4A3E86";
 
 const s = StyleSheet.create({
-  page: { fontFamily: "Plex", fontSize: 10, color: INK, paddingTop: 36, paddingBottom: 56, paddingHorizontal: 40 },
+  page: { fontFamily: "Sans", fontSize: 11, color: INK, paddingTop: 36, paddingBottom: 56, paddingHorizontal: 40 },
   header: { borderBottomWidth: 2, borderBottomColor: NAVY, paddingBottom: 8, marginBottom: 14, flexDirection: "row", justifyContent: "space-between" },
-  org: { fontSize: 14, fontWeight: 600, color: NAVY },
-  orgSub: { fontSize: 8.5, color: SLATE, marginTop: 2 },
-  docTitle: { fontSize: 12, fontWeight: 600, textAlign: "right" },
+  org: { fontSize: 15, fontWeight: 600, color: NAVY },
+  orgSub: { fontSize: 9.5, color: SLATE, marginTop: 2 },
+  docTitle: { fontSize: 13, fontWeight: 600, textAlign: "right" },
   mono: { fontFamily: "PlexMono" },
   block: { borderWidth: 1, borderColor: RULE, borderTopWidth: 2, borderTopColor: NAVY, borderRadius: 4, padding: 10, marginBottom: 10 },
-  blockTitle: { fontSize: 10.5, fontWeight: 600, color: NAVY, marginBottom: 6 },
+  blockTitle: { fontSize: 11.5, fontWeight: 600, color: NAVY, marginBottom: 6 },
   grid: { flexDirection: "row", flexWrap: "wrap" },
   field: { width: "50%", marginBottom: 6, paddingRight: 8 },
   fieldWide: { width: "100%", marginBottom: 6 },
-  label: { fontSize: 7.5, color: SLATE, marginBottom: 1 },
-  value: { fontSize: 10 },
-  amount: { fontSize: 20, fontWeight: 600 },
-  footer: { position: "absolute", bottom: 24, left: 40, right: 40, borderTopWidth: 0.5, borderTopColor: RULE, paddingTop: 6, flexDirection: "row", justifyContent: "space-between", fontSize: 7.5, color: SLATE },
+  label: { fontSize: 8.5, color: SLATE, marginBottom: 1 },
+  value: { fontSize: 11 },
+  amount: { fontSize: 22, fontWeight: 600 },
+  footer: { position: "absolute", bottom: 24, left: 40, right: 40, borderTopWidth: 0.5, borderTopColor: RULE, paddingTop: 6, flexDirection: "row", justifyContent: "space-between", fontSize: 8, color: SLATE },
   sigRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 36 },
-  sig: { width: "30%", borderTopWidth: 0.75, borderTopColor: INK, paddingTop: 4, fontSize: 8.5, textAlign: "center" },
-  th: { backgroundColor: NAVY, color: "#FFFFFF", fontWeight: 500, fontSize: 8, paddingVertical: 4, paddingHorizontal: 4 },
-  td: { fontSize: 8.5, paddingVertical: 3.5, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: RULE },
-  redacted: { color: REDACTED },
-  note: { fontSize: 8, color: SLATE, marginTop: 4 },
+  sig: { width: "30%", borderTopWidth: 0.75, borderTopColor: INK, paddingTop: 4, fontSize: 9.5, textAlign: "center" },
+  th: { backgroundColor: NAVY, color: "#FFFFFF", fontWeight: 500, fontSize: 9, paddingVertical: 4, paddingHorizontal: 4 },
+  td: { fontSize: 9.5, paddingVertical: 3.5, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: RULE },
+  note: { fontSize: 9, color: SLATE, marginTop: 4 },
+  // The paper application form: letterhead, then label + value on a dotted line.
+  lhRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  seal: { width: 40, height: 40, borderRadius: 20, backgroundColor: NAVY, alignItems: "center", justifyContent: "center" },
+  sealText: { color: "#FFFFFF", fontSize: 10, fontWeight: 600 },
+  lhName: { fontSize: 19, fontWeight: 600, color: NAVY, letterSpacing: 0.5 },
+  lhReg: { fontSize: 8, fontWeight: 600, color: NAVY, marginLeft: 1 },
+  lhAddr: { fontSize: 10.5, color: INK, textAlign: "center", marginTop: 3 },
+  rule2: { borderTopWidth: 2, borderTopColor: NAVY, marginTop: 8 },
+  rule1: { borderTopWidth: 0.75, borderTopColor: NAVY, marginTop: 1.5, marginBottom: 6 },
+  paperTitle: { fontSize: 12, fontWeight: 600, color: NAVY, textAlign: "center", marginBottom: 4 },
+  line: { flexDirection: "row", alignItems: "flex-end", marginTop: 9 },
+  lineLabel: { fontSize: 11, fontWeight: 500, marginRight: 4 },
+  lineValue: { flexGrow: 1, flexShrink: 1, fontSize: 11.5, paddingLeft: 3, paddingBottom: 1, borderBottomWidth: 0.9, borderBottomColor: SLATE, borderBottomStyle: "dotted", minHeight: 15 },
+  paperSig: { fontSize: 10.5, fontWeight: 600, marginTop: 26 },
+  solid: { borderTopWidth: 1.5, borderTopColor: NAVY, marginTop: 8, marginBottom: 2 },
 });
 
 export type Org = { name: string; address: string; phone: string; email: string; registrationNo: string; eightyGNo: string };
@@ -66,12 +81,57 @@ function Frame({ org, title, subtitle, printed, children, landscape }: { org: Or
         </View>
       </View>
       {children}
-      <View style={s.footer} fixed>
-        <Text>{printed.reference}</Text>
-        <Text>Printed by {printed.by} · {printed.at}</Text>
-        <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
-      </View>
+      <Footer printed={printed} />
     </Page>
+  );
+}
+
+function Footer({ printed }: { printed: Printed }) {
+  return (
+    <View style={s.footer} fixed>
+      <Text>{printed.reference}</Text>
+      <Text>Printed by {printed.by} · {printed.at}</Text>
+      <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
+    </View>
+  );
+}
+
+const Seal = () => <View style={s.seal}><Text style={s.sealText}>MHF</Text></View>;
+
+/** The letterhead of the MHF paper form: seal, name with ®, address, double rule. */
+function Letterhead({ org }: { org: Org }) {
+  return (
+    <View>
+      <View style={s.lhRow}>
+        <Seal />
+        <View style={{ alignItems: "center", flexGrow: 1, paddingHorizontal: 8 }}>
+          <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+            <Text style={s.lhName}>{org.name.toUpperCase()}</Text>
+            <Text style={s.lhReg}>®</Text>
+          </View>
+          <Text style={s.lhAddr}>{org.address || "Jamat Complex, 1st Floor, N.H.66, Near Noor Masjid, Bhatkal - 581 320."}</Text>
+          {(org.phone || org.email || org.registrationNo) && <Text style={[s.orgSub, { textAlign: "center" }]}>{[org.phone, org.email, org.registrationNo && `Reg. ${org.registrationNo}`].filter(Boolean).join(" · ")}</Text>}
+        </View>
+        <Seal />
+      </View>
+      <View style={s.rule2} />
+      <View style={s.rule1} />
+    </View>
+  );
+}
+
+/** One line of the paper form: one or more "Label ......value......" fields side by side. */
+type Cell = [label: string, value?: string | null, flex?: number];
+function Ln({ cells, mono }: { cells: Cell[]; mono?: boolean }) {
+  return (
+    <View style={s.line} wrap={false}>
+      {cells.map(([label, value, flex = 1], i) => (
+        <View key={i} style={{ flexDirection: "row", alignItems: "flex-end", flex, marginLeft: i ? 10 : 0 }}>
+          <Text style={s.lineLabel}>{label}</Text>
+          <Text style={[s.lineValue, mono ? s.mono : {}]}>{value || " "}</Text>
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -84,61 +144,78 @@ export function F({ label, value, wide, mono }: { label: string; value?: string 
   );
 }
 
-export function Block({ title, children, redacted }: { title: string; children: React.ReactNode; redacted?: boolean }) {
-  return (
-    <View style={[s.block, redacted ? { borderTopColor: REDACTED } : {}]} wrap={false}>
-      <Text style={[s.blockTitle, redacted ? s.redacted : {}]}>{title}</Text>
-      <View style={s.grid}>{children}</View>
-    </View>
-  );
-}
-
 // ─────────────────────────── documents ───────────────────────────
+
+/** One person block of the paper form. Redacted people arrive already blanked by the server. */
+export type PaperPerson = {
+  name: string; father: string; spouseLabel: string; spouse: string; address: string;
+  marital: string; age: string; gender: string; religion: string; mobile: string;
+};
 
 export type CaseSheetData = {
   caseNo: string; status: string; date: string;
-  applicant: [string, string][]; patient: [string, string][] | null; applicantRedacted: boolean; patientRedacted: boolean;
-  caseFields: [string, string][]; eligibility: [string, string][];
-  payments: { voucherNo: string; date: string; mode: string; cheque: string; bank: string; towards: string; hospital: string; amount: string; status: string }[];
-  decision: [string, string][];
+  applicant: PaperPerson; patient: PaperPerson | null; // null: the applicant is the patient
+  relation: string; dependent: string; introducedBy: string; doctor: string;
+  problem: string; approxExpense: string; approved: string; hospital: string;
+  payments: { cheque: string; amount: string; bank: string; date: string; mode: string; towards: string; hospital: string; remark: string }[];
 };
 
+function PersonLines({ who, p }: { who: "Applicant" | "Patient"; p: PaperPerson }) {
+  return (
+    <>
+      <Ln cells={[[`Name of the ${who}`, p.name]]} />
+      <Ln cells={[["Father Name", p.father]]} />
+      <Ln cells={[[p.spouseLabel, p.spouse]]} />
+      <Ln cells={[[`${who} Address`, p.address]]} />
+      <Ln cells={[["Marital status", p.marital, 1.3], ["Age", p.age, 0.7], ["Gender", p.gender, 1]]} />
+    </>
+  );
+}
+
+/** The application printed on the layout of the MHF paper form, in English. */
 export function CaseSheet({ org, d, printed }: { org: Org; d: CaseSheetData; printed: Printed }) {
+  const pays = d.payments.length ? d.payments : [{ cheque: "", amount: "", bank: "", date: "", mode: "", towards: "", hospital: "", remark: "" }];
   return (
     <Document title={`Case sheet ${d.caseNo}`}>
-      <Frame org={org} title="Application for medical aid" subtitle={`${d.caseNo} · ${d.status}`} printed={printed}>
-        <View style={[s.grid, { marginBottom: 8 }]}>
-          <F label="Case no" value={d.caseNo} mono /><F label="Date of application" value={d.date} />
-          <F label="Status" value={d.status} />
+      <Page size="A4" style={[s.page, { paddingTop: 28 }]}>
+        <Letterhead org={org} />
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <Text style={{ fontSize: 10.5 }}>Case no <Text style={s.mono}>{d.caseNo}</Text> · {d.status}</Text>
+          <View style={{ width: 170 }}><Ln cells={[["Date:", d.date]]} /></View>
         </View>
-        <Block title={d.patient ? "A — Applicant" : "A — Applicant (also the patient)"} redacted={d.applicantRedacted}>
-          {d.applicant.map(([l, v]) => <F key={l} label={l} value={v} />)}
-        </Block>
-        {d.patient && <Block title="B — Patient" redacted={d.patientRedacted}>{d.patient.map(([l, v]) => <F key={l} label={l} value={v} />)}</Block>}
-        <Block title="C — Case">{d.caseFields.map(([l, v]) => <F key={l} label={l} value={v} wide={l.startsWith("Major problem")} />)}</Block>
-        {d.eligibility.length > 0 && <Block title="Zakat eligibility">{d.eligibility.map(([l, v]) => <F key={l} label={l} value={v} />)}</Block>}
-        {d.decision.length > 0 && <Block title="Decision">{d.decision.map(([l, v]) => <F key={l} label={l} value={v} wide={l === "Note"} />)}</Block>}
-        <View style={s.block} wrap={false}>
-          <Text style={s.blockTitle}>D — Payment</Text>
-          {d.payments.length === 0 ? <Text style={s.note}>No payments recorded.</Text> : (
-            <View>
-              <View style={{ flexDirection: "row" }}>
-                {["Voucher", "Date", "Mode", "Cheque", "Bank", "Towards", "Hospital", "INR", "Status"].map((h, i) => <Text key={h} style={[s.th, { width: ["17%", "9%", "8%", "12%", "11%", "11%", "14%", "10%", "8%"][i] }]}>{h}</Text>)}
-              </View>
-              {d.payments.map((p) => (
-                <View key={p.voucherNo} style={{ flexDirection: "row" }}>
-                  {[p.voucherNo, p.date, p.mode, p.cheque, p.bank, p.towards, p.hospital, p.amount, p.status].map((v, i) => <Text key={i} style={[s.td, { width: ["17%", "9%", "8%", "12%", "11%", "11%", "14%", "10%", "8%"][i] }, i === 0 || i === 3 ? s.mono : {}]}>{v}</Text>)}
-                </View>
-              ))}
-            </View>
-          )}
+
+        <PersonLines who="Applicant" p={d.applicant} />
+        <Ln cells={[["Religion", d.applicant.religion, 1], ["Mobile No:", d.applicant.mobile, 1.4]]} />
+        {d.patient ? (
+          <>
+            <PersonLines who="Patient" p={d.patient} />
+            <Ln cells={[["Religion", d.patient.religion, 1], ["Mobile No:", d.patient.mobile, 1.3], ["Dependent", d.dependent, 0.8]]} />
+          </>
+        ) : (
+          <Ln cells={[["Name of the Patient", "Same as the applicant", 2.5], ["Dependent", d.dependent, 1]]} />
+        )}
+        <Ln cells={[["Applicant Relation with Patient", d.relation]]} />
+        <Ln cells={[["Introduce by", d.introducedBy], ["Attending Dr.", d.doctor]]} />
+        <Ln cells={[["Major Problem of the Patient", d.problem]]} />
+        <Ln cells={[["Approx Hospital Expenses", d.approxExpense, 1.4], ["Approved (INR)", d.approved, 1]]} />
+        <Ln cells={[["Name of the Hospital", d.hospital]]} />
+        <Text style={[s.paperSig, { textAlign: "right" }]}>Signature App / PT</Text>
+
+        <View style={s.solid} />
+        {pays.map((p, i) => (
+          <View key={i} wrap={false} style={i ? { marginTop: 6, paddingTop: 2, borderTopWidth: 0.5, borderTopColor: RULE } : {}}>
+            <Ln cells={[["Cheque", p.cheque, 1.1], ["INR", p.amount, 1], ["Bank", p.bank, 1.1]]} />
+            <Ln cells={[["Payment Date", p.date, 1.1], ["Mod of Transfer", p.mode, 1.2], ["Towards", p.towards, 1]]} />
+            <Ln cells={[["Name of the Hospital", p.hospital]]} />
+            <Ln cells={[["Remark", p.remark]]} />
+          </View>
+        ))}
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }} wrap={false}>
+          <Text style={[s.paperSig, { marginTop: 34 }]}>Signature App / PT</Text>
+          <Text style={[s.paperSig, { marginTop: 34 }]}>Signature of General Secretary</Text>
         </View>
-        <View style={s.sigRow} wrap={false}>
-          <Text style={s.sig}>Signature App / PT</Text>
-          <Text style={s.sig}>Verified by</Text>
-          <Text style={s.sig}>Signature of General Secretary</Text>
-        </View>
-      </Frame>
+        <Footer printed={printed} />
+      </Page>
     </Document>
   );
 }
@@ -178,30 +255,28 @@ export type PaymentReceiptData = {
 export function PaymentReceipt({ org, d, printed }: { org: Org; d: PaymentReceiptData; printed: Printed }) {
   return (
     <Document title={`Payment receipt ${d.voucherNo}`}>
-      <Frame org={org} title="Payment receipt" subtitle={d.voucherNo} printed={printed}>
-        <View style={s.block}>
-          <View style={s.grid}>
-            <F label="Voucher no" value={d.voucherNo} mono /><F label="Date" value={d.date} />
-            <F label="Paid to" value={d.paidTo} wide />
-          </View>
-          <Text style={[s.amount, { marginTop: 6 }]}>{d.amount}</Text>
-          <Text style={s.note}>{d.words}</Text>
-          <View style={[s.grid, { marginTop: 10 }]}>
-            <F label="Mode of transfer" value={d.mode} /><F label={d.reference.label} value={d.reference.value} mono />
-            <F label="From bank" value={d.fromBank} /><F label="Towards" value={d.towards} />
-            <F label="Case no" value={d.caseNo} mono /><F label="Patient" value={d.patient} />
-          </View>
+      <Page size="A4" style={[s.page, { paddingTop: 28 }]}>
+        <Letterhead org={org} />
+        <Text style={s.paperTitle}>Payment receipt</Text>
+        <Ln cells={[["Voucher no", d.voucherNo, 1.2], ["Date:", d.date, 1]]} />
+        <Ln cells={[["Paid to", d.paidTo]]} />
+        <Ln cells={[["The sum of Rupees", d.words]]} />
+        <View style={[s.line, { marginTop: 12, alignItems: "center" }]}>
+          <Text style={s.lineLabel}>INR</Text>
+          <Text style={[s.amount, { borderWidth: 1, borderColor: NAVY, borderRadius: 3, paddingHorizontal: 8, paddingVertical: 2 }]}>{d.amount}</Text>
         </View>
-        <View style={s.block}>
-          <Text>
-            {org.name} has paid the amount above towards the medical treatment of the patient named, under case {d.caseNo}.
-          </Text>
+        <Ln cells={[["Mod of Transfer", d.mode, 1], [d.reference.label, d.reference.value, 1.3]]} />
+        <Ln cells={[["From bank", d.fromBank, 1.3], ["Towards", d.towards, 1]]} />
+        <Ln cells={[["Case no", d.caseNo, 1], ["Patient", d.patient, 1.3]]} />
+        <Text style={{ marginTop: 16, fontSize: 11, lineHeight: 1.5 }}>
+          {org.name} has paid the amount above towards the medical treatment of the patient named, under case {d.caseNo}.
+        </Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }} wrap={false}>
+          <Text style={[s.paperSig, { marginTop: 48 }]}>For {org.name}{"\n"}(authorised signatory)</Text>
+          <Text style={[s.paperSig, { marginTop: 48, textAlign: "right" }]}>Received by{"\n"}(name, signature and stamp)</Text>
         </View>
-        <View style={s.sigRow}>
-          <Text style={s.sig}>For {org.name} (authorised signatory)</Text>
-          <Text style={s.sig}>Received by (name, signature and stamp)</Text>
-        </View>
-      </Frame>
+        <Footer printed={printed} />
+      </Page>
     </Document>
   );
 }

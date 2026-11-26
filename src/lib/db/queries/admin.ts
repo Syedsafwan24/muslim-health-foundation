@@ -83,7 +83,7 @@ export async function listUsers(ctx: ViewContext) {
   const rows = await prisma.user.findMany({ orderBy: [{ isActive: "desc" }, { name: "asc" }] });
   return rows.map((u) => ({
     id: u.id, name: u.name, email: u.email, role: u.role, isActive: u.isActive, lastLoginAt: u.lastLoginAt,
-    forceMeetingMode: u.forceMeetingMode, locked: !!u.lockedUntil && u.lockedUntil > new Date(),
+    forceMeetingMode: u.forceMeetingMode, hideCases: u.hideCases, locked: !!u.lockedUntil && u.lockedUntil > new Date(),
   }));
 }
 
@@ -108,8 +108,8 @@ export async function globalSearch(ctx: ViewContext, q: string) {
   if (term.length < 2) return { cases: [], people: [], hospitals: [], donors: [], payments: [], donations: [], namesDisabled: ctx.meetingMode };
   const up = term.toUpperCase();
   const [cases, people, hospitals, donors, payments, donations] = await Promise.all([
-    prisma.application.findMany({ where: { caseNo: { contains: up } }, take: 6, select: { id: true, caseNo: true, status: true } }),
-    prisma.person.findMany({
+    can(ctx, "applications.read") ? prisma.application.findMany({ where: { caseNo: { contains: up } }, take: 6, select: { id: true, caseNo: true, status: true } }) : [],
+    !can(ctx, "people.read") ? [] : prisma.person.findMany({
       where: { OR: [{ personCode: { contains: up } }, ...(ctx.meetingMode ? [] : [{ fullName: { contains: term, mode: "insensitive" as const } }, { mobile: { contains: term } }])] },
       take: 6,
       select: { id: true, personCode: true, fullName: true },

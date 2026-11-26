@@ -97,6 +97,7 @@ identities. Three ways it can be on:
 |---|---|---|---|
 | Global switch | `meetingMode.global` | `SUPER_ADMIN` only | ON → **every** user is redacted, including the super admin and the general secretary, until it is turned off |
 | Per-account pin | `User.forceMeetingMode` | `SUPER_ADMIN` only | one account is always redacted — for handing a laptop to a visitor, an auditor, or a committee member's own login |
+| Hide applications | `User.hideCases` | `SUPER_ADMIN` only | the account loses every `applications.*`, `people.*`, `attachments.*` and `identity.*` capability (enforced in `can()`), so Applications, Patients, Applicants, case search and case exports are closed to it; it is also always redacted everywhere else. Never applies to a super admin. |
 | Present mode | — | automatic | the full-screen meeting view is always redacted and cannot be unredacted |
 
 Resolution order (first match wins):

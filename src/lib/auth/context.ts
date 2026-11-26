@@ -44,7 +44,9 @@ const loadSession = cache(async (): Promise<SignedIn | null> => {
       userId: user.id,
       name: user.name,
       role: user.role,
-      meetingMode: resolveMeetingMode({ global, forceMeetingMode: user.forceMeetingMode }),
+      // Hiding applications also hides names everywhere else (payments, hospitals, reports).
+      meetingMode: resolveMeetingMode({ global, forceMeetingMode: user.forceMeetingMode || user.hideCases }),
+      hideCases: user.hideCases && user.role !== "SUPER_ADMIN",
       globalMeetingMode: global,
       fy: fyCookie && years.includes(fyCookie) ? fyCookie : defaultFiscalYear(started) ?? getFiscalYear(),
     },

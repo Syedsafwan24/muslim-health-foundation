@@ -11,6 +11,8 @@ export type ViewContext = {
   /** Resolved from the database on every request. Never from the client. */
   meetingMode: boolean;
   globalMeetingMode: boolean;
+  /** Super admin set this account to "Hide applications": no case, patient or applicant pages. */
+  hideCases: boolean;
   /** Selected fiscal year for dashboards and lists. */
   fy: string;
 };

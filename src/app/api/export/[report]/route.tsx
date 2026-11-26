@@ -16,7 +16,7 @@ import { getDonation, getDonor } from "@/lib/db/queries/donations";
 import { listAudit } from "@/lib/db/queries/admin";
 import { canViewReport, cellText, fyPeriod, REPORTS, runReport, type ReportKey, type ReportTable } from "@/lib/db/queries/reports";
 import { recordExport } from "@/lib/db/queries/shared";
-import { CaseSheet, PaymentReceipt, Receipt, Tables, toPdf, Voucher, type Org, type Printed } from "@/lib/pdf/documents";
+import { CaseSheet, PaymentReceipt, Receipt, Tables, toPdf, Voucher, type Org, type PaperPerson, type Printed } from "@/lib/pdf/documents";
 import { toXlsx } from "@/lib/export/xlsx";
 import { LIST_EXPORTS } from "@/lib/export/lists";
 
@@ -39,16 +39,18 @@ async function org(): Promise<Org> {
 }
 const printed = (ctx: ViewContext, reference: string): Printed => ({ reference, by: ctx.name, at: fmtDateTime(new Date()) });
 
-function personRows(p: PersonView): [string, string][] {
+/** A person block for the paper-style case sheet. Redacted people only ever carry code, band and status. */
+function paperPerson(p: PersonView): PaperPerson {
+  const gender = p.gender ? GENDER[p.gender] : "";
   if (p.isRedacted) {
-    return [["Person code", p.personCode], ["Gender", p.gender ? GENDER[p.gender] : "—"], ["Age band", p.ageBand ?? "—"], ["Marital status", MARITAL[p.maritalStatus]], ["Identity", "Hidden — meeting mode"]];
+    const h = "Hidden";
+    return { name: `Hidden — meeting mode (${p.personCode})`, father: h, spouseLabel: spouseLabel(p.gender), spouse: h, address: h, marital: MARITAL[p.maritalStatus], age: p.ageBand ?? "", gender, religion: h, mobile: h };
   }
-  return [
-    ["Name", p.fullName], ["Person code", p.personCode], ["Father name", p.fatherName ?? ""], [spouseLabel(p.gender), p.husbandName ?? ""],
-    ["Address", [p.addressLine, p.areaName, p.city, p.pincode].filter(Boolean).join(", ")], ["Marital status", MARITAL[p.maritalStatus]],
-    ["Age", p.age != null ? String(p.age) : ""], ["Gender", p.gender ? GENDER[p.gender] : ""], ["Religion", p.religion ?? ""],
-    ["Mobile no.", p.mobile ?? ""],
-  ];
+  return {
+    name: p.fullName, father: p.fatherName ?? "", spouseLabel: spouseLabel(p.gender), spouse: p.husbandName ?? "",
+    address: [p.addressLine, p.areaName, p.city, p.pincode].filter(Boolean).join(", "), marital: MARITAL[p.maritalStatus],
+    age: p.age != null ? String(p.age) : "", gender, religion: p.religion ?? "", mobile: p.mobile ?? "",
+  };
 }
 
 export async function GET(req: Request, { params }: { params: Promise<{ report: string }> }) {
@@ -78,23 +80,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ report: 
           printed={printed(ctx, a.caseNo)}
           d={{
             caseNo: a.caseNo, status: STATUS_LABEL[a.status], date: fmtDate(a.applicationDate),
-            applicant: personRows(a.applicant), applicantRedacted: a.applicant.isRedacted,
-            patient: a.patientIsApplicant ? null : [...personRows(a.patient), ["Applicant relation with patient", RELATION[a.relation]], ["Dependent", String(a.dependentCount ?? "")]],
-            patientRedacted: a.patient.isRedacted,
-            // Block C, in the order of the paper form.
-            caseFields: [
-              ...(a.patientIsApplicant ? [] : ([["Applicant relation with patient", RELATION[a.relation]]] as [string, string][])),
-              ...(m ? [] : ([["Introduce by", a.introducedByName ?? ""], ["Attending Dr.", a.attendingDoctor ?? ""]] as [string, string][])),
-              ["Major problem of the patient", a.disease ? `${a.disease.name} (${a.disease.categoryName})` : a.majorProblem ?? ""],
-              ["Approx hospital expenses", formatINR(a.approxExpensePaise)],
-              ["Name of the hospital", a.hospital ? `${a.hospital.name}${a.hospital.city ? `, ${a.hospital.city}` : ""}` : ""],
-              ["Approved (INR)", formatINR(a.approvedAmountPaise)],
-            ],
-            eligibility: [],
-            decision: [],
+            applicant: paperPerson(a.applicant),
+            patient: a.patientIsApplicant ? null : paperPerson(a.patient),
+            relation: RELATION[a.relation], dependent: a.dependentCount != null ? String(a.dependentCount) : "",
+            // Introducer and doctor are often names, so they are absent when masked.
+            introducedBy: m ? "Hidden" : a.introducedByName ?? "", doctor: m ? "Hidden" : a.attendingDoctor ?? "",
+            problem: a.disease ? `${a.disease.name} (${a.disease.categoryName})` : a.majorProblem ?? "",
+            approxExpense: a.approxExpensePaise != null ? formatINR(a.approxExpensePaise) : "",
+            approved: a.approvedAmountPaise != null ? formatINR(a.approvedAmountPaise) : "",
+            hospital: a.hospital ? `${a.hospital.name}${a.hospital.city ? `, ${a.hospital.city}` : ""}` : "",
             payments: a.payments.map((p) => ({
-              voucherNo: p.voucherNo, date: fmtDate(p.paymentDate), mode: PAYMENT_MODE[p.mode], cheque: p.chequeNo ?? p.referenceNo ?? "", bank: p.bankName ?? "",
-              towards: TOWARDS[p.towards], hospital: p.hospitalName ?? p.payeeName ?? "", amount: formatINR(p.amountPaise), status: PAYMENT_STATUS[p.status],
+              cheque: p.chequeNo ?? p.referenceNo ?? "", amount: formatINR(p.amountPaise), bank: p.bankName ?? "", date: fmtDate(p.paymentDate),
+              mode: PAYMENT_MODE[p.mode], towards: TOWARDS[p.towards], hospital: p.hospitalName ?? p.payeeName ?? "",
+              remark: [`${p.voucherNo} · ${PAYMENT_STATUS[p.status]}`, p.remark].filter(Boolean).join(" · "),
             })),
           }}
         />,

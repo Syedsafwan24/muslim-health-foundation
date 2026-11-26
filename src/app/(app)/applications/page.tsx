@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ClipboardList, Plus } from "lucide-react";
-import { getViewContext } from "@/lib/auth/context";
+import { requirePage } from "@/lib/auth/context";
 import { can } from "@/lib/auth/permissions";
 import { listApplications } from "@/lib/db/queries/applications";
 import { applicationFilters } from "@/lib/filters/applications";
@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 export const metadata: Metadata = { title: "Applications" };
 
 export default async function ApplicationsPage({ searchParams }: { searchParams: SearchParams }) {
-  const ctx = await getViewContext();
+  const ctx = await requirePage("applications.read");
   const p = await readParams(searchParams);
   const filters = applicationFilters(p, ctx);
   const [data, m] = await Promise.all([
@@ -53,7 +53,7 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
       <FilterBar
         filters={[
           { name: "q", label: "Search", type: "search", placeholder: ctx.meetingMode ? "Case number or person code" : "Case number, name, mobile or person code" },
-          { name: "status", label: "Status", type: "select", options: [{ value: "DRAFT", label: "Draft" }, { value: "APPROVED,PARTIALLY_APPROVED,PAYMENT_PENDING", label: "Not paid yet" }, { value: "PAID,CLOSED", label: "Paid" }] },
+          { name: "status", label: "Status", type: "select", options: [{ value: "DRAFT", label: "Draft" }, { value: "APPROVED,PARTIALLY_APPROVED,PAYMENT_PENDING", label: "Not paid yet" }, { value: "PAID,CLOSED", label: "Paid" }, { value: "REJECTED", label: "Rejected" }] },
           { name: "hospital", label: "Hospital", type: "select", options: m.hospitals.map((h) => ({ value: h.id, label: h.label })) },
           { name: "disease", label: "Major problem", type: "select", options: m.categories.flatMap((c) => c.diseases.map((d) => ({ value: d.id, label: `${d.name} (${c.name})` }))) },
           { name: "category", label: "Category", type: "select", options: m.categories.map((c) => ({ value: c.id, label: c.name })) },

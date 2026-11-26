@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, CheckCircle2, Circle, EyeOff, Printer } from "lucide-react";
-import { getViewContext } from "@/lib/auth/context";
+import { AlertTriangle, CheckCircle2, Circle, EyeOff, Lock, MessageCircle, Printer } from "lucide-react";
+import { getViewContext, requirePage } from "@/lib/auth/context";
 import { can } from "@/lib/auth/permissions";
 import { getApplication, getApplicationHistory } from "@/lib/db/queries/applications";
 import { activeFunds } from "@/lib/db/queries/funds";
@@ -13,14 +13,14 @@ import { formatINR } from "@/lib/money";
 import {
   AUDIT_ACTION, CASE_DOCUMENTS, GENDER, MARITAL, PAYMENT_MODE, RELATION, TOWARDS, spouseLabel,
 } from "@/lib/labels";
-import { EDITABLE, PAYABLE, STATUS_LABEL } from "@/lib/applications/transitions";
+import { EDITABLE, isLocked, PAYABLE, REJECTABLE, STATUS_LABEL } from "@/lib/applications/transitions";
 import type { PersonView } from "@/lib/redact";
 import { AliasChip, Field, MoneyText, PageHeader, PaymentStatusBadge, Pill, SheetPanel, StatusBadge } from "@/components/app/bits";
 import { DeleteButton } from "@/components/app/delete-button";
 import { Button } from "@/components/ui/button";
 import { readParams, type SearchParams } from "@/lib/params";
 import {
-  PaymentForm, PaymentRowActions, RevealBanner, RevealButton, DraftActions, DocumentSlots,
+  PaymentForm, PaymentRowActions, RevealBanner, RevealButton, DraftActions, DocumentSlots, CaseDecisionButton, CloseFileButton,
 } from "./case-client";
 
 export const metadata: Metadata = { title: "Case" };
@@ -33,7 +33,7 @@ const TABS = [
 ] as const;
 
 export default async function CasePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: SearchParams }) {
-  const ctx = await getViewContext();
+  const ctx = await requirePage("applications.read");
   const { id } = await params;
   const sp = await readParams(searchParams);
   const tabs = TABS.filter((t) => t.id !== "payments" || can(ctx, "payments.read"));
@@ -41,8 +41,13 @@ export default async function CasePage({ params, searchParams }: { params: Promi
   const a = await getApplication(ctx, id);
   if (!a) notFound();
 
-  const canWrite = can(ctx, "applications.write") && EDITABLE(a.status) && !a.masked;
+  const canWrite = can(ctx, "applications.write") && EDITABLE(a) && !a.masked;
   const canPay = can(ctx, "payments.write") && PAYABLE.includes(a.status);
+  const locked = isLocked(a);
+  const canReject = can(ctx, "applications.decide") && REJECTABLE.includes(a.status) && !locked && a.paidPaise === 0n;
+  const canReopen = can(ctx, "applications.reopen") && (!!a.lockedAt || a.status === "REJECTED");
+  const canCloseFile = can(ctx, "applications.reopen") && !locked && a.status !== "DRAFT" && a.payments.length > 0;
+  const whatsapp = a.status === "DRAFT" || a.masked ? null : whatsappLink(a);
 
   return (
     <>
@@ -63,6 +68,14 @@ export default async function CasePage({ params, searchParams }: { params: Promi
                 <Link href={`/applications/${a.id}/edit`}>Edit application</Link>
               </Button>
             )}
+            {whatsapp && (
+              <Button variant="outline" asChild>
+                <a href={whatsapp} target="_blank" rel="noopener noreferrer"><MessageCircle aria-hidden /> WhatsApp</a>
+              </Button>
+            )}
+            {canReject && <CaseDecisionButton id={a.id} caseNo={a.caseNo} kind="reject" />}
+            {canReopen && <CaseDecisionButton id={a.id} caseNo={a.caseNo} kind="reopen" />}
+            {canCloseFile && <CloseFileButton id={a.id} caseNo={a.caseNo} />}
             {a.status !== "DRAFT" && can(ctx, "reports.export") && (
               <Button variant="outline" asChild>
                 <a href={`/api/export/case-sheet?id=${a.id}`} target="_blank" rel="noopener"><Printer aria-hidden /> Case sheet</a>
@@ -73,6 +86,17 @@ export default async function CasePage({ params, searchParams }: { params: Promi
         }
       />
 
+      {a.status === "REJECTED" && (
+        <div role="note" className="mb-4 rounded-sheet border border-rejected bg-rejected-bg px-4 py-3 text-ui text-navy-900">
+          <p className="font-medium text-rejected">This application was rejected.</p>
+          {a.rejectionReason && <p className="mt-1 whitespace-pre-line">Remarks: {a.rejectionReason}</p>}
+        </div>
+      )}
+      {a.lockedAt && a.status !== "REJECTED" && (
+        <div role="note" className="mb-4 flex items-center gap-2 rounded-sheet border border-rule bg-sheet px-4 py-3 text-ui text-navy-900">
+          <Lock aria-hidden className="size-4 shrink-0" /> Payment made, file closed on {fmtDate(a.lockedAt)}. The application and its documents can no longer be changed{can(ctx, "applications.reopen") ? "." : ". Only the super admin can reopen it."}
+        </div>
+      )}
       {a.grantExpiresAt && <RevealBanner applicationId={a.id} expiresAt={a.grantExpiresAt.toISOString()} />}
       {a.watch.map((w) => (
         <div key={w.personCode} role="note" className="mb-4 flex items-start gap-2 rounded-sheet border border-pending bg-pending-bg px-4 py-3 text-ui text-navy-900">
@@ -110,7 +134,7 @@ export default async function CasePage({ params, searchParams }: { params: Promi
 
       <div className="mt-6">
         {tab === "application" && <ApplicationTab a={a} />}
-        {tab === "documents" && <DocumentsTab a={a} canUpload={can(ctx, "attachments.write") && !a.masked && a.status !== "CLOSED"} canVerify={can(ctx, "attachments.write") && !a.masked} />}
+        {tab === "documents" && <DocumentsTab a={a} canUpload={can(ctx, "attachments.write") && !a.masked && !locked} canVerify={can(ctx, "attachments.write") && !a.masked} />}
         {tab === "payments" && <PaymentsTab a={a} canPay={canPay} canManage={can(ctx, "payments.write")} />}
         {tab === "history" && <HistoryTab id={a.id} masked={a.masked} />}
       </div>
@@ -119,6 +143,23 @@ export default async function CasePage({ params, searchParams }: { params: Promi
 }
 
 type A = NonNullable<Awaited<ReturnType<typeof getApplication>>>;
+
+/**
+ * Click-to-send: opens WhatsApp with the message typed; the clerk checks it and presses Send.
+ * The text carries the case number and amounts, never the patient's name.
+ */
+function whatsappLink(a: A): string | null {
+  const person = [a.applicant, a.patient].find((p) => !p.isRedacted && p.mobile);
+  if (!person || person.isRedacted || !person.mobile) return null;
+  const hospital = a.hospital ? ` to ${a.hospital.name}` : "";
+  const body =
+    a.status === "REJECTED" ? `your application ${a.caseNo} could not be approved. Please contact the office for details.`
+    : a.status === "PAID" || a.status === "CLOSED" ? `${formatINR(a.paidPaise)} has been paid${hospital} for case ${a.caseNo}.`
+    : a.paidPaise > 0n ? `${formatINR(a.paidPaise)} of ${formatINR(a.approvedAmountPaise)} has been paid${hospital} for case ${a.caseNo}.`
+    : `your application ${a.caseNo} has been approved for ${formatINR(a.approvedAmountPaise)}. The payment will be made${hospital}.`;
+  const text = `Assalamu Alaikum. Muslim Health Foundation, Bhatkal: ${body}`;
+  return `https://wa.me/91${person.mobile}?text=${encodeURIComponent(text)}`;
+}
 
 function Stat({ label, value, rule = "navy", small, sub }: { label: string; value: string; rule?: "navy" | "info" | "approved"; small?: boolean; sub?: string | null }) {
   return (
@@ -315,7 +356,7 @@ async function PaymentsTab({ a, canPay, canManage }: { a: A; canPay: boolean; ca
           />
         </SheetPanel>
       )}
-      {!canPay && a.status !== "PAID" && a.status !== "CLOSED" && canManage && (
+      {!canPay && a.status !== "PAID" && a.status !== "CLOSED" && a.status !== "REJECTED" && canManage && (
         <p className="text-ui text-slate-body">Payments can be recorded once the case is approved.</p>
       )}
     </div>

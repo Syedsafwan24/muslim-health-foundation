@@ -41,7 +41,7 @@ export default async function EditApplicationPage({ params, searchParams }: { pa
     );
   }
   const a = r.app;
-  if (!EDITABLE(a.status)) redirect(`/applications/${id}`);
+  if (!EDITABLE(a)) redirect(`/applications/${id}`);
   const [m, names, maxMb, missing, appPrior, patPrior, funds] = await Promise.all([
     masterOptions(),
     // A reveal unlocks this one case, not every case's introducers and doctors.

@@ -276,6 +276,8 @@ export const userSchema = z.object({
   role: z.enum(["SUPER_ADMIN", "GENERAL_SECRETARY", "COMMITTEE_MEMBER", "OPERATOR", "ACCOUNTANT", "VIEWER"]),
   isActive: z.boolean().default(true),
   forceMeetingMode: z.boolean().default(false),
+  /** Cannot open applications, patients or applicants at all. Ignored for a super admin. */
+  hideCases: z.boolean().default(false),
   newPassword: z.string().optional().transform((v) => v || null).refine((v) => v === null || v.length >= 10, "Use at least 10 characters"),
   adminPassword: z.string().min(1, "Enter your own password to confirm"),
 });

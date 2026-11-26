@@ -26,7 +26,7 @@ export default async function UsersSettings() {
                 <td className="px-3">{ROLE_LABEL[u.role]}</td>
                 <td className="px-3 space-x-1">
                   {u.isActive ? <Pill tone="approved">Active</Pill> : <Pill tone="slate">Deactivated</Pill>}
-                  {u.forceMeetingMode && <Pill tone="redacted">Names hidden</Pill>}
+                  {u.hideCases ? <Pill tone="redacted">Applications hidden</Pill> : u.forceMeetingMode && <Pill tone="redacted">Names hidden</Pill>}
                   {u.locked && <Pill tone="rejected">Locked out</Pill>}
                 </td>
                 <td className="px-3">{fmtDateTime(u.lastLoginAt)}</td>

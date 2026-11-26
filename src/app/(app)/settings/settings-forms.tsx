@@ -64,11 +64,11 @@ export function GlobalSwitch({ on, readOnly }: { on: boolean; readOnly: boolean 
 
 // ─────────────────────────── users ───────────────────────────
 
-type UserRow = { id: string; name: string; email: string; role: Role; isActive: boolean; forceMeetingMode: boolean };
+type UserRow = { id: string; name: string; email: string; role: Role; isActive: boolean; forceMeetingMode: boolean; hideCases: boolean };
 
 export function UserDialog({ user }: { user?: UserRow }) {
   const [open, setOpen] = useState(false);
-  const [v, setV] = useState({ name: user?.name ?? "", email: user?.email ?? "", role: user?.role ?? ("OPERATOR" as Role), isActive: user?.isActive ?? true, forceMeetingMode: user?.forceMeetingMode ?? false, newPassword: "", adminPassword: "" });
+  const [v, setV] = useState({ name: user?.name ?? "", email: user?.email ?? "", role: user?.role ?? ("OPERATOR" as Role), isActive: user?.isActive ?? true, forceMeetingMode: user?.forceMeetingMode ?? false, hideCases: user?.hideCases ?? false, newPassword: "", adminPassword: "" });
   const { pending, run } = useRun(() => setOpen(false));
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -83,6 +83,12 @@ export function UserDialog({ user }: { user?: UserRow }) {
             <FormField id="u-pass" label={user ? "Reset password" : "Starting password"} hint="At least 10 characters"><TextInput id="u-pass" type="password" autoComplete="new-password" value={v.newPassword} onChange={(e) => setV({ ...v, newPassword: e.target.value })} /></FormField>
             <label className="flex items-center gap-2 text-ui"><input type="checkbox" checked={v.isActive} onChange={(e) => setV({ ...v, isActive: e.target.checked })} /> Active</label>
             <label className="flex items-center gap-2 text-ui"><input type="checkbox" checked={v.forceMeetingMode} onChange={(e) => setV({ ...v, forceMeetingMode: e.target.checked })} /> Always hide names</label>
+            {v.role !== "SUPER_ADMIN" && (
+              <label className="flex items-start gap-2 text-ui sm:col-span-2">
+                <input type="checkbox" className="mt-1" checked={v.hideCases} onChange={(e) => setV({ ...v, hideCases: e.target.checked })} />
+                <span>Hide applications<span className="block text-caption text-slate-body">This person cannot open Applications, Patients or Applicants, and sees no names anywhere.</span></span>
+              </label>
+            )}
             <FormField id="u-admin" label="Your password" required className="sm:col-span-2"><TextInput id="u-admin" type="password" autoComplete="current-password" value={v.adminPassword} onChange={(e) => setV({ ...v, adminPassword: e.target.value })} /></FormField>
           </div>
           <DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" disabled={pending}>{user ? "Save account" : "Create account"}</Button></DialogFooter>

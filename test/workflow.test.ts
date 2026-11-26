@@ -110,6 +110,39 @@ describe("an approved case from entry to paid", () => {
     expect(a.payments[0].amountPaise).toBe(250000n);
   });
 
+  it("closes the file once paid: no edits or documents until the super admin reopens it", async () => {
+    const paid = await prisma.application.findFirstOrThrow({ where: { applicant: { fullName: `Paid At Entry ${stamp}` } } });
+    expect(paid.lockedAt).not.toBeNull();
+    await as("GENERAL_SECRETARY");
+    const edit = await apps.saveApplication({ ...paper(`Paid At Entry ${stamp}`, 250000n), id: paid.id });
+    expect(edit.ok).toBe(false);
+    if (!edit.ok) expect(edit.error).toMatch(/closed/);
+    expect((await apps.reopenApplication({ id: paid.id, reason: "wrong hospital" })).ok).toBe(false); // not the super admin
+    await as("SUPER_ADMIN");
+    ok(await apps.reopenApplication({ id: paid.id, reason: "wrong hospital" }));
+    expect((await prisma.application.findUniqueOrThrow({ where: { id: paid.id } })).lockedAt).toBeNull();
+    ok(await apps.closeApplicationFile({ id: paid.id }));
+    expect((await prisma.application.findUniqueOrThrow({ where: { id: paid.id } })).lockedAt).not.toBeNull();
+  });
+
+  it("rejects a recorded case later, with remarks, and it can no longer be paid", async () => {
+    await as("OPERATOR");
+    const d = ok(await apps.saveApplication(paper(`Rejected Later ${stamp}`, 300000n)));
+    ok(await apps.submitApplication({ id: d.id, payment: null }));
+    expect((await apps.rejectApplication({ id: d.id, remarks: "covered by insurance" })).ok).toBe(false); // operators cannot decide
+    await as("GENERAL_SECRETARY");
+    expect((await apps.rejectApplication({ id: d.id, remarks: "" })).ok).toBe(false);
+    ok(await apps.rejectApplication({ id: d.id, remarks: "covered by insurance" }));
+    const a = await prisma.application.findUniqueOrThrow({ where: { id: d.id } });
+    expect(a.status).toBe("REJECTED");
+    expect(a.rejectionReason).toBe("covered by insurance");
+    expect(await prisma.auditLog.count({ where: { entityId: d.id, action: "REJECT" } })).toBe(1);
+    await as("ACCOUNTANT");
+    const bankId = (await prisma.bank.findFirstOrThrow({ where: { isOwnAccount: true } })).id;
+    const pay = await pays.recordPayment({ applicationId: d.id, mode: "CHEQUE", chequeNo: `R${stamp}`.slice(0, 12), bankId, paymentDate: toDateInput(new Date()), towards: "HOSPITAL_BILL", hospitalId, fundId: zakatId, amountPaise: 300000n });
+    expect(pay.ok).toBe(false);
+  });
+
   it("caps payments at the approved amount unless overridden", async () => {
     await as("ACCOUNTANT");
     const base = { applicationId: appId, mode: "CHEQUE" as const, chequeNo: `T${stamp}`.slice(0, 12), bankId: (await prisma.bank.findFirstOrThrow({ where: { isOwnAccount: true } })).id, paymentDate: toDateInput(new Date()), towards: "HOSPITAL_BILL" as const, hospitalId, fundId: zakatId };
@@ -196,7 +229,7 @@ describe("an approved case from entry to paid", () => {
     ok(await pays.cancelPayment({ id: p.id, reason: "wrong case entirely" }));
     await as("SUPER_ADMIN");
     ok(await del.deleteCase({ id: d.id, reason: "Entered twice by mistake", password: "x" }));
-    const ctx = { userId: "", name: "", role: "SUPER_ADMIN" as const, meetingMode: false, globalMeetingMode: false, fy: a.fiscalYear };
+    const ctx = { userId: "", name: "", role: "SUPER_ADMIN" as const, meetingMode: false, globalMeetingMode: false, hideCases: false, fy: a.fiscalYear };
     const list = await listApplications(ctx, { q: a.caseNo });
     expect(list.rows.find((r) => r.id === d.id)).toBeUndefined();
     const logged = await prisma.auditLog.findFirst({ where: { entityId: d.id, action: "DELETE" } });

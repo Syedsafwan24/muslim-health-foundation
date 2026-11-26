@@ -13,6 +13,8 @@ export const CAPABILITIES = {
   "applications.read": [SA, GS, CM, OP, AC, VW],
   "applications.write": [SA, GS, OP],
   "applications.decide": [SA, GS],
+  /** Reopen a case whose file closed when it was paid. */
+  "applications.reopen": [SA],
   "people.read": [SA, GS, CM, OP, AC, VW],
   "people.write": [SA, GS, OP],
   "people.merge": [SA, GS],
@@ -56,11 +58,15 @@ export class ForbiddenError extends Error {
   }
 }
 
-export function can(ctx: { role: Role }, cap: Capability): boolean {
+/** Taken away from an account the super admin set to "Hide applications" (never the super admin). */
+const CASE_CAPS = /^(applications|people|attachments|identity)\./;
+
+export function can(ctx: { role: Role; hideCases?: boolean }, cap: Capability): boolean {
+  if (ctx.hideCases && ctx.role !== SA && CASE_CAPS.test(cap)) return false;
   return (CAPABILITIES[cap] as readonly Role[]).includes(ctx.role);
 }
 
-export function assertPermission(ctx: { role: Role }, cap: Capability): void {
+export function assertPermission(ctx: { role: Role; hideCases?: boolean }, cap: Capability): void {
   if (!can(ctx, cap)) throw new ForbiddenError();
 }
 

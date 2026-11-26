@@ -16,7 +16,7 @@ import { toDateInput } from "@/lib/fy";
 import { ATTACHMENT_TYPE, CASE_DOCUMENTS, options, PAYMENT_MODE, TOWARDS } from "@/lib/labels";
 import { paymentSchema, type PaymentInput } from "@/lib/validators";
 import type { ActionResult } from "@/lib/action";
-import { deleteDraft, endReveal, revealIdentity } from "../actions";
+import { closeApplicationFile, deleteDraft, endReveal, rejectApplication, reopenApplication, revealIdentity } from "../actions";
 import { deleteAttachment, uploadAttachments, verifyAttachment } from "../attachment-actions";
 import { useAddDialog } from "../add-dialog";
 import { cancelPayment, markBounced, markCleared, markIssued, recordPayment } from "@/app/(app)/payments/actions";
@@ -35,6 +35,59 @@ function useRun() {
       } else toast.error(r.error);
     });
   return { pending, run };
+}
+
+// ─────────────────────────── reject / reopen ───────────────────────────
+
+/** Reject a recorded case later, or (super admin) reopen a closed one. Both need written remarks. */
+export function CaseDecisionButton({ id, caseNo, kind }: { id: string; caseNo: string; kind: "reject" | "reopen" }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const { pending, run } = useRun();
+  const reject = kind === "reject";
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        {reject
+          ? <Button variant="outline" className="border-rejected text-rejected hover:bg-rejected-bg">Reject application</Button>
+          : <Button variant="outline"><Lock aria-hidden /> Reopen case</Button>}
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{reject ? `Reject ${caseNo}?` : `Reopen ${caseNo}?`}</DialogTitle>
+          <DialogDescription>
+            {reject
+              ? "The case is marked rejected and can no longer be edited or paid. Your remarks are kept on the case and in the activity log."
+              : "The case can be edited again. Your reason is kept in the activity log. Close the file again when the correction is done."}
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (text.trim().length < 3) return setError(reject ? "Write why the application is rejected." : "Write why the case is reopened.");
+            setError(null);
+            run(() => (reject ? rejectApplication({ id, remarks: text }) : reopenApplication({ id, reason: text })), reject ? `Case ${caseNo} rejected` : `Case ${caseNo} reopened`, () => { setOpen(false); setText(""); });
+          }}
+        >
+          <FormField id={`${kind}-text`} label={reject ? "Remarks" : "Reason"} error={error ?? undefined} required>
+            <TextArea id={`${kind}-text`} value={text} onChange={(e) => setText(e.target.value)} invalid={!!error}
+              placeholder={reject ? "For example: patient discharged before payment; treatment covered by insurance" : "For example: wrong hospital entered"} />
+          </FormField>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="submit" disabled={pending} variant={reject ? "destructive" : "default"}>{reject ? "Reject application" : "Reopen case"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function CloseFileButton({ id, caseNo }: { id: string; caseNo: string }) {
+  const { pending, run } = useRun();
+  return <Button variant="outline" disabled={pending} onClick={() => run(() => closeApplicationFile({ id }), `Case ${caseNo} closed`)}><Lock aria-hidden /> Close file</Button>;
 }
 
 // ─────────────────────────── reveal ───────────────────────────

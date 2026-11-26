@@ -2,17 +2,19 @@ import type { ApplicationStatus } from "@prisma/client";
 
 // Case lifecycle. The trust approves cases outside the app, so a case is entered already
 // approved. DRAFT is only the clerk's unfinished entry; payment states follow the payments.
-// The review states still in the enum (SUBMITTED … REJECTED) are unused dead ends, so old rows
-// cannot move anywhere unexpected. Any transition not in this map throws.
+// A recorded case can still be rejected later (with remarks) until money goes out; the super admin
+// can bring a rejected case back. The other review states in the enum are unused dead ends, so old
+// rows cannot move anywhere unexpected. Any transition not in this map throws.
 export const TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> = {
   DRAFT: ["APPROVED"],
-  APPROVED: ["PAYMENT_PENDING", "PAID", "CLOSED"],
-  PARTIALLY_APPROVED: ["PAYMENT_PENDING", "PAID", "CLOSED"], // legacy rows only
+  APPROVED: ["PAYMENT_PENDING", "PAID", "CLOSED", "REJECTED"],
+  PARTIALLY_APPROVED: ["PAYMENT_PENDING", "PAID", "CLOSED", "REJECTED"], // legacy rows only
   // PAID → PAYMENT_PENDING happens when a payment is cancelled or bounces.
-  PAYMENT_PENDING: ["PAID", "CLOSED"],
+  PAYMENT_PENDING: ["PAID", "CLOSED", "REJECTED"],
+  REJECTED: ["APPROVED"], // super admin reopens
   PAID: ["CLOSED", "PAYMENT_PENDING"],
   CLOSED: [], // reopening is a separate SUPER_ADMIN action
-  SUBMITTED: [], UNDER_VERIFICATION: [], ON_HOLD: [], COMMITTEE_REVIEW: [], DEFERRED: [], REJECTED: [],
+  SUBMITTED: [], UNDER_VERIFICATION: [], ON_HOLD: [], COMMITTEE_REVIEW: [], DEFERRED: [],
 };
 
 export class TransitionError extends Error {}
@@ -25,14 +27,23 @@ export function assertTransition(from: ApplicationStatus, to: ApplicationStatus)
 
 export const canTransition = (from: ApplicationStatus, to: ApplicationStatus) => TRANSITIONS[from].includes(to);
 
-/** Case details may be edited until the money has gone out. */
-export const EDITABLE = (s: ApplicationStatus) => s !== "PAID" && s !== "CLOSED";
+/**
+ * The file closes when a payment is recorded (lockedAt), or when the case is closed or rejected.
+ * Only the super admin can reopen it. Payments themselves stay manageable (a bounced cheque still
+ * needs a new one), but the application, its people and its documents are frozen.
+ */
+export const isLocked = (a: { status: ApplicationStatus; lockedAt: Date | null }) =>
+  !!a.lockedAt || a.status === "CLOSED" || a.status === "REJECTED";
+/** Case details may be edited until the file closes. */
+export const EDITABLE = (a: { status: ApplicationStatus; lockedAt: Date | null }) => !isLocked(a);
+/** Cases that may still be rejected: recorded, not yet paid out. */
+export const REJECTABLE: ApplicationStatus[] = ["APPROVED", "PARTIALLY_APPROVED", "PAYMENT_PENDING"];
 /** Payments may be recorded against these. */
 export const PAYABLE: ApplicationStatus[] = ["APPROVED", "PARTIALLY_APPROVED", "PAYMENT_PENDING"];
 /** Open = not yet finished. */
 export const OPEN_STATUSES: ApplicationStatus[] = ["DRAFT", "APPROVED", "PARTIALLY_APPROVED", "PAYMENT_PENDING"];
 /** Statuses a clerk can filter by. The unused review states are left out. */
-export const LIVE_STATUSES: ApplicationStatus[] = ["DRAFT", "APPROVED", "PAYMENT_PENDING", "PAID", "CLOSED"];
+export const LIVE_STATUSES: ApplicationStatus[] = ["DRAFT", "APPROVED", "PAYMENT_PENDING", "PAID", "CLOSED", "REJECTED"];
 
 export const STATUS_LABEL: Record<ApplicationStatus, string> = {
   DRAFT: "Draft",

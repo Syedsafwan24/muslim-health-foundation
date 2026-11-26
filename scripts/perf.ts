@@ -15,7 +15,7 @@ import { fyPeriod, runReport } from "../src/lib/db/queries/reports";
 
 async function main() {
   const admin = await prisma.user.findFirstOrThrow({ where: { role: "SUPER_ADMIN" } });
-  const ctx: ViewContext = { userId: admin.id, name: admin.name, role: admin.role, meetingMode: false, globalMeetingMode: false, fy: process.env.FY ?? getFiscalYear() };
+  const ctx: ViewContext = { userId: admin.id, name: admin.name, role: admin.role, meetingMode: false, globalMeetingMode: false, hideCases: false, fy: process.env.FY ?? getFiscalYear() };
   const app = await prisma.application.findFirstOrThrow({ where: { status: "PAID" }, orderBy: { createdAt: "desc" } });
   const hospital = await prisma.hospital.findFirstOrThrow();
 

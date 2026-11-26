@@ -27,6 +27,7 @@ vi.mock("next/navigation", () => ({
 const { prisma } = await import("@/lib/db");
 const { redactPerson, scrubNames } = await import("@/lib/redact");
 const { getViewContext, resolveMeetingMode } = await import("@/lib/auth/context");
+const { can } = await import("@/lib/auth/permissions");
 const { listApplications, getApplication, getApplicationHistory } = await import("@/lib/db/queries/applications");
 const { listPeople, getPerson, searchPeople } = await import("@/lib/db/queries/people");
 const { globalSearch, listAudit, privacySettings } = await import("@/lib/db/queries/admin");
@@ -77,7 +78,7 @@ function assertClean(p: unknown) {
   for (const marker of [PAYEE, PURPOSE, REVEAL_REASON]) expect(s).not.toContain(marker);
 }
 const assertPersonClean = (p: object) => { for (const k of PERSON_ONLY_KEYS) expect(p).not.toHaveProperty(k); };
-const ctxFor = (role: Role, userId: string, meetingMode = false) => ({ userId, name: "Test", role, meetingMode, globalMeetingMode: meetingMode, fy: "2026-27" });
+const ctxFor = (role: Role, userId: string, meetingMode = false) => ({ userId, name: "Test", role, meetingMode, globalMeetingMode: meetingMode, hideCases: false, fy: "2026-27" });
 const ALL_TIME = { from: new Date("2000-01-01"), to: new Date("2100-01-01"), label: "All" };
 
 async function setGlobal(on: boolean) {
@@ -374,6 +375,28 @@ describe("11. religion statistics", () => {
     expect(await religionBreakdown(ctxFor("SUPER_ADMIN", ids.admin, true), "patient")).toBeNull();
     for (const role of ["GENERAL_SECRETARY", "COMMITTEE_MEMBER", "OPERATOR", "ACCOUNTANT", "VIEWER"] as Role[]) {
       expect(await religionBreakdown(ctxFor(role, ids.admin), "patient")).toBeNull();
+    }
+  });
+});
+
+describe("11. hide applications for one account", () => {
+  it("takes away case, person and document access, hides names, and never applies to the super admin", async () => {
+    const acc = await prisma.user.findFirstOrThrow({ where: { role: "ACCOUNTANT" } });
+    await setGlobal(false);
+    await prisma.user.update({ where: { id: acc.id }, data: { hideCases: true } });
+    try {
+      asUser(acc.id, "ACCOUNTANT");
+      const ctx = await getViewContext();
+      expect(ctx.hideCases).toBe(true);
+      expect(ctx.meetingMode).toBe(true);
+      for (const cap of ["applications.read", "people.read", "attachments.readFinancial", "identity.reveal"] as const) expect(can(ctx, cap)).toBe(false);
+      expect(can(ctx, "payments.read")).toBe(true);
+      const hits = await globalSearch(ctx, ids.patient.fullName.slice(0, 6));
+      expect(hits.cases).toHaveLength(0);
+      expect(hits.people).toHaveLength(0);
+      expect(can({ role: "SUPER_ADMIN", hideCases: true }, "applications.read")).toBe(true);
+    } finally {
+      await prisma.user.update({ where: { id: acc.id }, data: { hideCases: false } });
     }
   });
 });

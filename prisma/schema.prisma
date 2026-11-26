@@ -26,6 +26,7 @@ model User {
   isActive      Boolean  @default(true)
   lastLoginAt   DateTime?
   forceMeetingMode Boolean @default(false) // per-user override, see docs/03
+  hideCases     Boolean  @default(false) // cannot open applications, patients or applicants at all
   failedLoginCount Int     @default(0)     // 5 failures → 15-minute lockout
   lockedUntil   DateTime?
   sessionVersion     Int     @default(0)     // bumped on password reset, deactivation, sign-out: older JWTs are refused
@@ -356,6 +357,7 @@ model Application {
   decidedById     String?
   decidedBy       User?             @relation("decidedBy", fields: [decidedById], references: [id])
   decidedAt       DateTime?
+  lockedAt        DateTime?                       // file closed once paid; super admin can reopen
   meetingId       String?
   meeting         CommitteeMeeting? @relation(fields: [meetingId], references: [id])
 

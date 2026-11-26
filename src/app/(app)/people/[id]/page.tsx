@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AlertTriangle, EyeOff } from "lucide-react";
-import { getViewContext } from "@/lib/auth/context";
+import { requirePage } from "@/lib/auth/context";
 import { can } from "@/lib/auth/permissions";
 import { getPerson } from "@/lib/db/queries/people";
 import { masterOptions } from "@/lib/db/queries/admin";
@@ -44,7 +44,7 @@ function CaseTable({ rows, empty }: { rows: Case[]; empty: string }) {
 }
 
 export default async function PersonPage({ params }: { params: Promise<{ id: string }> }) {
-  const ctx = await getViewContext();
+  const ctx = await requirePage("people.read");
   const { id } = await params;
   const d = await getPerson(ctx, id);
   if (!d) notFound();

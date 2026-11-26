@@ -137,6 +137,8 @@ export async function createPayment(
   });
   await audit({ action: "PAY", entity: "Payment", entityId: row.id, summary: `Recorded payment ${voucherNo} of ${formatINR(p.amountPaise)} for case ${app.caseNo}`, after: { amountPaise: p.amountPaise, mode: p.mode, fund: fund.name } });
   await syncPaymentStatus(tx, applicationId, userId, `Payment ${voucherNo}`);
+  // Once money is recorded the file closes: no more edits unless the super admin reopens it.
+  if (!app.lockedAt) await tx.application.update({ where: { id: applicationId }, data: { lockedAt: new Date() } });
 
   // Warn (not block) when the fund drops below 10% of this year's inflow.
   const { start, end } = await fyBounds((await fyOfDate(new Date(), tx)) ?? "", tx);

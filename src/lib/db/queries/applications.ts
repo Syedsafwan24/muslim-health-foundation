@@ -257,6 +257,7 @@ export async function getApplication(ctx: ViewContext, id: string) {
     fiscalYear: a.fiscalYear,
     applicationDate: a.applicationDate,
     status: a.status,
+    lockedAt: a.lockedAt,
     priority: a.priority,
     masked,
     grantExpiresAt,

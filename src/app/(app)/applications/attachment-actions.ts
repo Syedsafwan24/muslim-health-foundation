@@ -15,6 +15,7 @@ import { deleteObjects, putObject } from "@/lib/storage";
 import { getSettings } from "@/lib/settings";
 import { ATTACHMENT_TYPE, CASE_DOCUMENTS } from "@/lib/labels";
 import { id } from "@/lib/validators";
+import { isLocked } from "@/lib/applications/transitions";
 
 const MAX_EDGE = 2500;
 /** Decompression-bomb guard: a tiny file can declare a huge canvas. 50 MP is well above any phone camera. */
@@ -59,9 +60,9 @@ export async function uploadAttachments(form: FormData): Promise<ActionResult<{ 
     const files = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
     if (!files.length) throw new UserError("Choose at least one file.");
 
-    const app = await prisma.application.findFirst({ where: { id: applicationId }, select: { id: true, caseNo: true, status: true, _count: { select: { attachments: { where: { deletedAt: null } } } } } });
+    const app = await prisma.application.findFirst({ where: { id: applicationId }, select: { id: true, caseNo: true, status: true, lockedAt: true, _count: { select: { attachments: { where: { deletedAt: null } } } } } });
     if (!app) throw new UserError("That case no longer exists.");
-    if (app.status === "CLOSED") throw new UserError(`Case ${app.caseNo} is closed. Reopen it to add documents.`);
+    if (isLocked(app)) throw new UserError(`Case ${app.caseNo} is closed. Only the super admin can reopen it to add documents.`);
     const s = await getSettings(["documents.maxFileMb", "documents.maxFilesPerCase"]);
     if (app._count.attachments + files.length > s["documents.maxFilesPerCase"]) {
       throw new UserError(`A case can hold ${s["documents.maxFilesPerCase"]} files. Remove some before adding more.`);
@@ -122,9 +123,9 @@ export async function uploadAttachments(form: FormData): Promise<ActionResult<{ 
 
 export const deleteAttachment = action("attachments.write", z.object({ id }), async ({ id }, { ctx, tx, audit }) => {
   if (ctx.meetingMode) throw new UserError("Documents cannot be changed while identities are hidden.");
-  const a = await tx.attachment.findFirst({ where: { id }, include: { application: { select: { id: true, caseNo: true, status: true } } } });
+  const a = await tx.attachment.findFirst({ where: { id }, include: { application: { select: { id: true, caseNo: true, status: true, lockedAt: true } } } });
   if (!a) throw new UserError("That document has already been removed.");
-  if (a.application && ["PAID", "CLOSED"].includes(a.application.status)) throw new UserError("Documents on a paid or closed case are kept as the record.");
+  if (a.application && isLocked(a.application)) throw new UserError("Documents on a closed case are kept as the record.");
   if (a.application && a.application.status !== "DRAFT") {
     const others = await tx.attachment.count({ where: { applicationId: a.application.id, type: a.type, id: { not: id } } });
     if (!others) throw new UserError(`Case ${a.application.caseNo} has been recorded, so its only ${ATTACHMENT_TYPE[a.type].toLowerCase()} cannot be removed. Upload the correct one first, then remove this.`);

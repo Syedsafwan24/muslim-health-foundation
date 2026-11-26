@@ -19,7 +19,7 @@ import { LIVE_PAYMENT } from "@/lib/db/queries/shared";
 import { formatINR } from "@/lib/money";
 import { priorAid } from "@/lib/db/queries/applications";
 import { findDuplicates, getPersonForEdit } from "@/lib/db/queries/people";
-import { EDITABLE, STATUS_LABEL } from "@/lib/applications/transitions";
+import { EDITABLE, isLocked, REJECTABLE, STATUS_LABEL } from "@/lib/applications/transitions";
 import {
   applicationSchema, id, missingRequired, personSchema, recordCaseSchema, REQUIRED, revealSchema,
 } from "@/lib/validators";
@@ -47,7 +47,7 @@ export const saveApplication = action("applications.write", applicationSchema, a
   if (input.id) {
     existing = await tx.application.findFirst({ where: { id: input.id } });
     if (!existing) throw new UserError("That case no longer exists.");
-    if (!EDITABLE(existing.status)) throw new UserError(`Case ${existing.caseNo} is ${STATUS_LABEL[existing.status].toLowerCase()} and can no longer be edited.`);
+    if (!EDITABLE(existing)) throw new UserError(`Case ${existing.caseNo} is closed and can no longer be edited.${existing.status === "REJECTED" ? "" : " Payment has been made."} Only the super admin can reopen it.`);
   }
 
   const applicant = await savePerson(tx, input.applicant, audit);
@@ -172,6 +172,54 @@ export const submitApplication = action("applications.write", recordCaseSchema, 
   return { caseNo };
 });
 
+/** Reject a recorded case later on (before any money goes out), with the remarks why. */
+export const rejectApplication = action(
+  "applications.decide",
+  z.object({ id, remarks: z.string().trim().min(3, "Write why the application is rejected").max(2000) }),
+  async ({ id, remarks }, { ctx, tx, audit }) => {
+    await lockApplication(tx, id);
+    const a = await tx.application.findFirst({ where: { id } });
+    if (!a) throw new UserError("That case no longer exists.");
+    if (!REJECTABLE.includes(a.status) || isLocked(a)) throw new UserError(`Case ${a.caseNo} is ${a.lockedAt ? "closed" : STATUS_LABEL[a.status].toLowerCase()} and cannot be rejected.`);
+    const live = await tx.payment.count({ where: { ...LIVE_PAYMENT, applicationId: id } });
+    if (live) throw new UserError(`Case ${a.caseNo} has a payment. Cancel the payment before rejecting the case.`);
+    await tx.application.update({ where: { id }, data: { rejectionReason: remarks } });
+    await moveStatus(tx, id, "REJECTED", ctx.userId, remarks);
+    await audit({ action: "REJECT", entity: "Application", entityId: id, summary: `Rejected case ${a.caseNo}`, reason: remarks, before: { status: a.status }, after: { status: "REJECTED" } });
+    revalidatePath(`/applications/${id}`);
+    revalidatePath("/applications");
+    return { caseNo: a.caseNo };
+  },
+);
+
+/** Super admin: open a closed (paid) or rejected case again so it can be corrected. */
+export const reopenApplication = action(
+  "applications.reopen",
+  z.object({ id, reason: z.string().trim().min(3, "Write why the case is reopened").max(500) }),
+  async ({ id, reason }, { ctx, tx, audit }) => {
+    await lockApplication(tx, id);
+    const a = await tx.application.findFirst({ where: { id } });
+    if (!a) throw new UserError("That case no longer exists.");
+    if (!a.lockedAt && a.status !== "REJECTED") throw new UserError(`Case ${a.caseNo} is not closed.`);
+    await tx.application.update({ where: { id }, data: { lockedAt: null } });
+    if (a.status === "REJECTED") await moveStatus(tx, id, "APPROVED", ctx.userId, `Reopened: ${reason}`);
+    await audit({ action: "UPDATE", entity: "Application", entityId: id, summary: `Reopened case ${a.caseNo}`, reason, before: { status: a.status, lockedAt: a.lockedAt }, after: { lockedAt: null } });
+    revalidatePath(`/applications/${id}`);
+    return { caseNo: a.caseNo };
+  },
+);
+
+/** Super admin: close a reopened case's file again once it is corrected. */
+export const closeApplicationFile = action("applications.reopen", z.object({ id }), async ({ id }, { tx, audit }) => {
+  await lockApplication(tx, id);
+  const a = await tx.application.findFirst({ where: { id } });
+  if (!a) throw new UserError("That case no longer exists.");
+  if (a.lockedAt) return { caseNo: a.caseNo };
+  await tx.application.update({ where: { id }, data: { lockedAt: new Date() } });
+  await audit({ action: "UPDATE", entity: "Application", entityId: id, summary: `Closed the file of case ${a.caseNo}`, after: { lockedAt: true } });
+  revalidatePath(`/applications/${id}`);
+  return { caseNo: a.caseNo };
+});
 
 export const deleteDraft = action("applications.write", z.object({ id }), async ({ id }, { tx, audit }) => {
   const a = await tx.application.findFirst({ where: { id } });

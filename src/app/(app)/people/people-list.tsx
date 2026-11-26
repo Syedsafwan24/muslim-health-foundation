@@ -1,5 +1,5 @@
 import { Users } from "lucide-react";
-import { getViewContext } from "@/lib/auth/context";
+import { requirePage } from "@/lib/auth/context";
 import { can } from "@/lib/auth/permissions";
 import { AGE_BAND_LABELS, listPeople, peopleFilters } from "@/lib/db/queries/people";
 import { religionBreakdown } from "@/lib/db/queries/religion";
@@ -15,7 +15,7 @@ import { ExportButton } from "@/components/app/export-button";
 
 /** /patients and /applicants share this view of the one Person registry. */
 export async function PeopleList({ as, searchParams }: { as: "patient" | "applicant"; searchParams: SearchParams }) {
-  const ctx = await getViewContext();
+  const ctx = await requirePage("people.read");
   const p = await readParams(searchParams);
   const [data, m, religions] = await Promise.all([listPeople(ctx, { as, ...peopleFilters(p) }), masterOptions(), religionBreakdown(ctx, as)]);
   const title = as === "patient" ? "Patients" : "Applicants";
