@@ -16,7 +16,7 @@ export default async function UsersSettings() {
   return (
     <div className="space-y-6">
       <SheetPanel title="Users" bodyClassName="p-0" action={manage && <UserDialog />}>
-        <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-ui">
+        <div className="relative overflow-x-auto"><table className="w-full min-w-[720px] text-ui">
           <thead className="bg-navy-700 text-left text-white"><tr><th className={th}>Name</th><th className={th}>Email</th><th className={th}>Job</th><th className={th}>Status</th><th className={th}>Last sign-in</th><th className={th}><span className="sr-only">Actions</span></th></tr></thead>
           <tbody>
             {users.map((u) => (

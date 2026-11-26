@@ -308,7 +308,7 @@ async function PaymentsTab({ a, canPay, canManage }: { a: A; canPay: boolean; ca
         {a.payments.length === 0 ? (
           <p className="px-5 py-6 text-body text-slate-body">{canPay ? "No payments yet. Record the first payment below." : "No payments yet."}</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full text-ui">
               <caption className="sr-only">Payments</caption>
               <thead className="bg-navy-700 text-left text-white">

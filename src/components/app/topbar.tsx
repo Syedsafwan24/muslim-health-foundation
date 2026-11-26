@@ -43,7 +43,7 @@ export function Topbar({
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-rule bg-sheet px-4" data-print-hide>
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-rule bg-sheet px-3 sm:gap-3 sm:px-4" data-print-hide>
       <SidebarTrigger aria-label="Toggle sidebar" className="size-10" />
       <label className="sr-only" htmlFor="fy-select">Fiscal year</label>
       <Select
@@ -62,9 +62,9 @@ export function Topbar({
       </button>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
         {canToggleMeetingMode && (
-          <label className={cn("flex h-9 items-center gap-2 rounded-control px-3 text-label", globalMeetingMode ? "bg-redacted-bg text-redacted" : "text-slate-body")}>
+          <label className={cn("flex h-9 items-center gap-2 rounded-control px-1.5 text-label sm:px-3", globalMeetingMode ? "bg-redacted-bg text-redacted" : "text-slate-body")}>
             <EyeOff aria-hidden className="size-4" />
             <span className="hidden md:inline">Meeting mode</span>
             <Switch

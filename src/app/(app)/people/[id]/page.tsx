@@ -20,7 +20,7 @@ type Case = NonNullable<Awaited<ReturnType<typeof getPerson>>>["asPatient"][numb
 function CaseTable({ rows, empty }: { rows: Case[]; empty: string }) {
   if (!rows.length) return <p className="px-5 py-6 text-ui text-slate-body">{empty}</p>;
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full text-ui">
         <thead className="bg-navy-700 text-left text-white">
           <tr>{["Case no", "Date", "Disease", "Hospital", "Requested", "Paid", "Status"].map((h) => <th key={h} scope="col" className={`px-3 py-2.5 text-label font-medium ${["Requested", "Paid"].includes(h) ? "text-right" : ""}`}>{h}</th>)}</tr>

@@ -24,7 +24,7 @@ export default async function FiscalYearsSettings() {
         The super admin sets each fiscal year&apos;s first and last day. Cases, payments, donations and expenses are placed in the year their date falls in,
         and can only be recorded in a year that has been started and is not closed. Case, voucher, receipt and expense numbers restart with each year.
       </p>
-      <table className="w-full text-ui">
+      <div className="relative overflow-x-auto"><table className="w-full min-w-[760px] text-ui">
         <caption className="sr-only">Fiscal years</caption>
         <thead className="bg-navy-700 text-left text-white">
           <tr>
@@ -65,7 +65,7 @@ export default async function FiscalYearsSettings() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </SheetPanel>
   );
 }
