@@ -50,7 +50,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     can(ctx, "settings.read") && { href: "/settings", label: "Settings", icon: "settings" },
   ].filter(Boolean) as NavItem[];
 
-  const bannerReason = ctx.meetingMode ? (ctx.globalMeetingMode ? "global" : "account") : null;
+  const bannerReason = ctx.meetingMode ? (ctx.globalMeetingMode ? "global" : ctx.hideCases ? "cases" : "account") : null;
 
   return (
     <SidebarProvider defaultOpen={sidebarOpen} style={{ "--sidebar-width": "16.5rem", "--sidebar-width-icon": "4.25rem" } as React.CSSProperties}>

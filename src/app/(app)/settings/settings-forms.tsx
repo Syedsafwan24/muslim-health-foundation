@@ -77,8 +77,8 @@ export function UserDialog({ user }: { user?: UserRow }) {
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); run(() => saveUser({ ...v, id: user?.id }), user ? "Account updated" : "Account created"); }}>
           <DialogHeader><DialogTitle>{user ? `Edit ${user.name}` : "Add user"}</DialogTitle><DialogDescription>To confirm, enter your own password at the bottom.</DialogDescription></DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField id="u-name" label="Name" required><TextInput id="u-name" value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} /></FormField>
-            <FormField id="u-email" label="Email" required><TextInput id="u-email" type="email" value={v.email} onChange={(e) => setV({ ...v, email: e.target.value })} /></FormField>
+            <FormField id="u-name" label="Name" required><TextInput id="u-name" autoComplete="off" value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} /></FormField>
+            <FormField id="u-email" label="Email" required><TextInput id="u-email" type="email" autoComplete="off" value={v.email} onChange={(e) => setV({ ...v, email: e.target.value })} /></FormField>
             <FormField id="u-role" label="Job"><Select id="u-role" value={v.role} onChange={(e) => setV({ ...v, role: e.target.value as Role })} options={Object.entries(ROLE_LABEL).map(([value, label]) => ({ value, label }))} /></FormField>
             <FormField id="u-pass" label={user ? "Reset password" : "Starting password"} hint="At least 10 characters"><TextInput id="u-pass" type="password" autoComplete="new-password" value={v.newPassword} onChange={(e) => setV({ ...v, newPassword: e.target.value })} /></FormField>
             <label className="flex items-center gap-2 text-ui"><input type="checkbox" checked={v.isActive} onChange={(e) => setV({ ...v, isActive: e.target.checked })} /> Active</label>

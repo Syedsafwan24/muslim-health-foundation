@@ -44,7 +44,7 @@ export function Topbar({
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-rule bg-sheet px-4" data-print-hide>
-      <SidebarTrigger aria-label="Toggle sidebar" />
+      <SidebarTrigger aria-label="Toggle sidebar" className="size-10" />
       <label className="sr-only" htmlFor="fy-select">Fiscal year</label>
       <Select
         id="fy-select"
@@ -112,7 +112,15 @@ export function Topbar({
   );
 }
 
-export function MeetingModeBanner({ reason }: { reason: "global" | "account" | "present" }) {
+export function MeetingModeBanner({ reason }: { reason: "global" | "account" | "present" | "cases" }) {
+  if (reason === "cases") {
+    return (
+      <div role="status" className="sticky top-14 z-20 flex items-center gap-2 bg-redacted px-4 py-2 text-label text-white" data-print-hide>
+        <EyeOff aria-hidden className="size-4 shrink-0" />
+        Applications, patients and applicants are hidden for this account.
+      </div>
+    );
+  }
   const text = {
     global: "Identities are hidden for everyone — meeting mode is on.",
     account: "Identities are always hidden for this account.",
@@ -120,7 +128,7 @@ export function MeetingModeBanner({ reason }: { reason: "global" | "account" | "
   }[reason];
   return (
     <div role="status" className="sticky top-14 z-20 flex items-center gap-2 bg-redacted px-4 py-2 text-label text-white" data-print-hide>
-      <EyeOff aria-hidden className="size-4" />
+      <EyeOff aria-hidden className="size-4 shrink-0" />
       {text} Case numbers, person codes, medical and financial details stay visible.
     </div>
   );

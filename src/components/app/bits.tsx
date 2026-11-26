@@ -101,8 +101,8 @@ export function SheetPanel({
   return (
     <section className={cn("rounded-sheet border border-rule border-t-2 bg-sheet shadow-sheet", ruleClass, className)}>
       {(title || action) && (
-        <header className="flex items-center justify-between gap-3 border-b border-rule px-5 py-3">
-          {title && <h3 className="text-h3 text-navy-900">{title}</h3>}
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-rule px-5 py-3">
+          {title && <h3 className="min-w-0 text-h3 text-navy-900">{title}</h3>}
           {action}
         </header>
       )}
@@ -114,9 +114,9 @@ export function SheetPanel({
 /** Big tabular figure, small label beneath, optional delta. */
 export function StatCard({ label, value, delta, rule = "navy", href }: { label: string; value: React.ReactNode; delta?: React.ReactNode; rule?: "navy" | "approved" | "pending" | "info" | "zakat"; href?: string }) {
   const body = (
-    <SheetPanel rule={rule} bodyClassName="px-5 py-4">
-      {/* Sized so ₹ crore amounts still fit a narrow card; long values wrap instead of spilling out. */}
-      <div className="text-h1 tabular-nums text-navy-900 [overflow-wrap:anywhere] 2xl:text-display">{value}</div>
+    <SheetPanel rule={rule} bodyClassName="px-4 py-3 sm:px-5 sm:py-4">
+      {/* Sized so ₹ crore amounts still fit a narrow card (two per row on a phone); long values wrap. */}
+      <div className="text-h2 tabular-nums text-navy-900 [overflow-wrap:anywhere] sm:text-h1 2xl:text-display">{value}</div>
       <div className="mt-1 text-label text-slate-body">{label}</div>
       {delta && <div className="mt-2 text-caption text-slate-body">{delta}</div>}
     </SheetPanel>
@@ -178,7 +178,7 @@ export function PageHeader({ title, meta, actions, back }: { title: React.ReactN
   return (
     <div className="mb-6">
       {back && (
-        <Link href={back.href} className="mb-2 inline-block text-label text-info hover:underline">
+        <Link href={back.href} className="-my-2 mb-0 inline-block py-2 text-label text-info hover:underline">
           ‹ {back.label}
         </Link>
       )}

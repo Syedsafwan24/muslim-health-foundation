@@ -29,7 +29,7 @@ export default async function FundsPage() {
           <SheetPanel
             key={f.id}
             rule={f.type === "ZAKAT" ? "zakat" : f.isActive ? "navy" : "none"}
-            title={<span className="flex items-center gap-2">{f.name}{!f.isActive && <Pill tone="slate">Inactive</Pill>}{f.isRestricted && <Pill tone="info">Restricted</Pill>}{!f.allowsExpenses && <Pill tone="slate">No expenses</Pill>}</span>}
+            title={<span className="flex flex-wrap items-center gap-2">{f.name}{!f.isActive && <Pill tone="slate">Inactive</Pill>}{f.isRestricted && <Pill tone="info">Restricted</Pill>}{!f.allowsExpenses && <Pill tone="slate">No expenses</Pill>}</span>}
             action={can(ctx, "funds.write") && <FundDialog initial={{ id: f.id, name: f.name, type: f.type, isRestricted: f.isRestricted, allowsExpenses: f.allowsExpenses, isActive: f.isActive, openingBalancePaise: f.openingPaise, password: "" }} />}
           >
             <FundBar name="Balance" type={f.type} balancePaise={f.balancePaise} committedPct={f.committedPct} low={f.low} />

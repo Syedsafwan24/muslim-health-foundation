@@ -31,7 +31,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Sea
         meta={<>Every cheque and transfer paid out</>}
         actions={can(ctx, "reports.export") && <ExportButton name="payments" />}
       />
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard label="Total paid out" value={formatINR(s.paidPaise)} delta="Excluding cancelled and bounced" rule="approved" />
         <StatCard label="Cheques not yet cleared" value={s.unclearedCount.toLocaleString("en-IN")} delta={formatINR(s.unclearedPaise)} rule="pending" />
         <StatCard label="Payments" value={s.count.toLocaleString("en-IN")} rule="info" />

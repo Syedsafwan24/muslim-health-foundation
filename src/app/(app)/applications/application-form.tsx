@@ -222,7 +222,7 @@ export function ApplicationForm({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <ol className="flex flex-wrap items-center gap-2" aria-label="Steps">
+        <ol className="flex flex-wrap items-center gap-1 sm:gap-2" aria-label="Steps">
           {STEPS.map((label, i) => (
             <li key={label} className="flex items-center gap-2">
               <button
@@ -230,12 +230,12 @@ export function ApplicationForm({
                 disabled={!reachable(i)}
                 onClick={async () => { if (i < step || ((await trigger(stepFields[step])) && requiredFilled())) setStep(i); }}
                 aria-current={i === step ? "step" : undefined}
-                className={cn("flex h-9 items-center gap-2 rounded-control px-3 text-ui disabled:opacity-50", i === step ? "bg-navy-700 text-white" : i < step ? "text-navy-900 hover:bg-navy-50" : "text-slate-body hover:bg-navy-50")}
+                className={cn("flex h-10 items-center gap-2 rounded-control px-2.5 text-ui disabled:opacity-50 sm:px-3", i === step ? "bg-navy-700 text-white" : i < step ? "text-navy-900 hover:bg-navy-50" : "text-slate-body hover:bg-navy-50")}
               >
                 <span className={cn("grid size-5 place-items-center rounded-full text-caption tabular-nums", i === step ? "bg-white text-navy-700" : "border border-current")}>{i < step ? <Check className="size-3" aria-hidden /> : i + 1}</span>
-                {label}
+                <span className={i === step ? "" : "sr-only sm:not-sr-only"}>{label}</span>
               </button>
-              {i < STEPS.length - 1 && <span aria-hidden className="h-px w-4 bg-rule" />}
+              {i < STEPS.length - 1 && <span aria-hidden className="h-px w-2 bg-rule sm:w-4" />}
             </li>
           ))}
         </ol>
@@ -392,8 +392,8 @@ function PersonBlock({ form, block, known, onPick, onClear }: {
         <FormField id={id("addressLine")} label={`${who} address`} error={e.addressLine?.message} required={req("addressLine")}>
           <TextInput id={id("addressLine")} autoComplete="off" {...register(f("addressLine"))} invalid={!!e.addressLine} />
         </FormField>
-        <div className="grid grid-cols-3 gap-4 lg:col-span-2">
-          <FormField id={id("maritalStatus")} label="Marital status">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:col-span-2">
+          <FormField id={id("maritalStatus")} label="Marital status" className="col-span-2 sm:col-span-1">
             <Select id={id("maritalStatus")} {...register(f("maritalStatus"))} options={options(MARITAL)} />
           </FormField>
           <FormField id={id("ageYears")} label="Age" error={e.ageYears?.message} required={req("ageYears")}>

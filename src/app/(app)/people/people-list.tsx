@@ -37,7 +37,7 @@ export async function PeopleList({ as, searchParams }: { as: "patient" | "applic
         meta={<>Everyone who has been {as === "patient" ? "a patient" : "an applicant"} on a case, with lifetime aid received</>}
         actions={can(ctx, "reports.export") && <ExportButton name={as === "patient" ? "patients" : "applicants"} />}
       />
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard label={title} value={s.people.toLocaleString("en-IN")} />
         <StatCard label="Cases" value={s.cases.toLocaleString("en-IN")} rule="info" />
         <StatCard label="Aid received" value={formatINR(s.paidPaise)} rule="approved" />

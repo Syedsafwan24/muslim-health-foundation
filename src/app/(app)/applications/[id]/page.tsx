@@ -110,7 +110,7 @@ export default async function CasePage({ params, searchParams }: { params: Promi
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <Stat label="Approved (INR)" value={formatINR(a.approvedAmountPaise)} rule="info" />
         <Stat label="Paid" value={formatINR(a.paidPaise)} rule="approved" />
         <Stat label="Approx hospital expenses" value={formatINR(a.approxExpensePaise)} />
@@ -163,8 +163,8 @@ function whatsappLink(a: A): string | null {
 
 function Stat({ label, value, rule = "navy", small, sub }: { label: string; value: string; rule?: "navy" | "info" | "approved"; small?: boolean; sub?: string | null }) {
   return (
-    <SheetPanel rule={rule} bodyClassName="px-5 py-4">
-      <div className={small ? "text-h2 text-navy-900" : "text-h1 tabular-nums whitespace-nowrap text-navy-900 2xl:text-display"}>{value}</div>
+    <SheetPanel rule={rule} bodyClassName="px-4 py-3 sm:px-5 sm:py-4">
+      <div className={small ? "text-h3 text-navy-900 sm:text-h2" : "text-h2 tabular-nums text-navy-900 [overflow-wrap:anywhere] sm:text-h1 2xl:text-display"}>{value}</div>
       <div className="mt-1 text-label text-slate-body">{sub ? `${label} · ${sub}` : label}</div>
     </SheetPanel>
   );

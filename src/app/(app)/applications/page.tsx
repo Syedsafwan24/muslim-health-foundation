@@ -44,7 +44,7 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
           )}
         </>}
       />
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard label={`Cases · ${data.totals.patients.toLocaleString("en-IN")} patients`} value={data.total.toLocaleString("en-IN")} />
         <StatCard label="Approved" value={formatINR(data.totals.approved)} rule="info" />
         <StatCard label="Paid" value={formatINR(data.totals.paid)} rule="approved" />
