@@ -55,9 +55,14 @@ const s = StyleSheet.create({
   rule2: { borderTopWidth: 2, borderTopColor: NAVY, marginTop: 8 },
   rule1: { borderTopWidth: 0.75, borderTopColor: NAVY, marginTop: 1.5, marginBottom: 6 },
   paperTitle: { fontSize: 12, fontWeight: 600, color: NAVY, textAlign: "center", marginBottom: 4 },
-  line: { flexDirection: "row", alignItems: "flex-end", marginTop: 9 },
-  lineLabel: { fontSize: 11, fontWeight: 500, marginRight: 4 },
-  lineValue: { flexGrow: 1, flexShrink: 1, fontSize: 11.5, paddingLeft: 3, paddingBottom: 1, borderBottomWidth: 0.9, borderBottomColor: SLATE, borderBottomStyle: "dotted", minHeight: 15 },
+  // Labels sit on the value's first line (same size, so the baselines match); every dotted line in
+  // a row is stretched to the row's bottom, so neighbours stay level when one value wraps.
+  line: { flexDirection: "row", marginTop: 8 },
+  lineCell: { flexDirection: "row" },
+  lineLabel: { fontSize: 11.5, lineHeight: 1.35, fontWeight: 500, marginRight: 4 },
+  lineValue: { flexGrow: 1, flexShrink: 1, flexBasis: 0, fontSize: 11.5, lineHeight: 1.35, paddingLeft: 3, borderBottomWidth: 0.9, borderBottomColor: SLATE, borderBottomStyle: "dotted" },
+  para: { fontSize: 11.5, lineHeight: 1.35, paddingLeft: 3, marginTop: 2, borderBottomWidth: 0.9, borderBottomColor: SLATE, borderBottomStyle: "dotted" },
+  continued: { position: "absolute", top: 12, left: 40, right: 40, fontSize: 8.5, color: SLATE },
   paperSig: { fontSize: 10.5, fontWeight: 600, marginTop: 26 },
   solid: { borderTopWidth: 1.5, borderTopColor: NAVY, marginTop: 8, marginBottom: 2 },
 });
@@ -124,13 +129,18 @@ function Letterhead({ org }: { org: Org }) {
   );
 }
 
-/** One line of the paper form: one or more "Label ......value......" fields side by side. */
-type Cell = [label: string, value?: string | null, flex?: number];
+/**
+ * One line of the paper form: one or more "Label ......value......" fields side by side.
+ * Widths are percentages on one grid (COL), so the columns line up from row to row. Long values
+ * wrap inside their field; very long free text goes through LongLn instead.
+ */
+type Cell = [label: string, value?: string | null, widthPct?: number];
+const COL = { a: 36, b: 34, c: 30 } as const;
 function Ln({ cells, mono }: { cells: Cell[]; mono?: boolean }) {
   return (
     <View style={s.line} wrap={false}>
-      {cells.map(([label, value, flex = 1], i) => (
-        <View key={i} style={{ flexDirection: "row", alignItems: "flex-end", flex, marginLeft: i ? 10 : 0 }}>
+      {cells.map(([label, value, w = 100 / cells.length], i) => (
+        <View key={i} style={[s.lineCell, { width: `${w}%`, paddingLeft: i ? 10 : 0 }]}>
           <Text style={s.lineLabel}>{label}</Text>
           <Text style={[s.lineValue, mono ? s.mono : {}]}>{value || " "}</Text>
         </View>
@@ -144,6 +154,17 @@ export function F({ label, value, wide, mono }: { label: string; value?: string 
     <View style={wide ? s.fieldWide : s.field}>
       <Text style={s.label}>{label}</Text>
       <Text style={[s.value, mono ? s.mono : {}]}>{value || "—"}</Text>
+    </View>
+  );
+}
+
+/** Free text that may be long: on its line while short, otherwise full width under its label. */
+function LongLn({ label, value }: { label: string; value: string }) {
+  if (value.length <= 70) return <Ln cells={[[label, value]]} />;
+  return (
+    <View style={{ marginTop: 8 }}>
+      <Text style={s.lineLabel} minPresenceAhead={30}>{label}</Text>
+      <Text style={s.para}>{value}</Text>
     </View>
   );
 }
@@ -171,7 +192,7 @@ function PersonLines({ who, p }: { who: "Applicant" | "Patient"; p: PaperPerson 
       <Ln cells={[["Father Name", p.father]]} />
       <Ln cells={[[p.spouseLabel, p.spouse]]} />
       <Ln cells={[[`${who} Address`, p.address]]} />
-      <Ln cells={[["Marital status", p.marital, 1.3], ["Age", p.age, 0.7], ["Gender", p.gender, 1]]} />
+      <Ln cells={[["Marital status", p.marital, COL.a], ["Age", p.age, COL.b], ["Gender", p.gender, COL.c]]} />
     </>
   );
 }
@@ -182,34 +203,35 @@ export function CaseSheet({ org, d, printed }: { org: Org; d: CaseSheetData; pri
   return (
     <Document title={`Case sheet ${d.caseNo}`}>
       <Page size="A4" style={[s.page, { paddingTop: 28 }]}>
+        <Text style={s.continued} fixed render={({ pageNumber }) => (pageNumber > 1 ? `Application ${d.caseNo} (continued)` : "")} />
         <Letterhead org={org} />
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }}>
-          <Text style={{ fontSize: 10.5 }}>Case no <Text style={s.mono}>{d.caseNo}</Text> · {d.status}</Text>
-          <View style={{ width: 170 }}><Ln cells={[["Date:", d.date]]} /></View>
-        </View>
+        <Ln cells={[["Case no", `${d.caseNo} · ${d.status}`, COL.a + COL.b], ["Date:", d.date, COL.c]]} />
 
         <PersonLines who="Applicant" p={d.applicant} />
-        <Ln cells={[["Religion", d.applicant.religion, 1], ["Mobile No:", d.applicant.mobile, 1.4]]} />
+        <Ln cells={[["Religion", d.applicant.religion, COL.a], ["Mobile No:", d.applicant.mobile, COL.b + COL.c]]} />
         {d.patient ? (
           <>
             <PersonLines who="Patient" p={d.patient} />
-            <Ln cells={[["Religion", d.patient.religion, 1], ["Mobile No:", d.patient.mobile, 1.3], ["Dependent", d.dependent, 0.8]]} />
+            <Ln cells={[["Religion", d.patient.religion, COL.a], ["Mobile No:", d.patient.mobile, COL.b], ["Dependent", d.dependent, COL.c]]} />
           </>
         ) : (
-          <Ln cells={[["Name of the Patient", "Same as the applicant", 2.5], ["Dependent", d.dependent, 1]]} />
+          <Ln cells={[["Name of the Patient", "Same as the applicant", COL.a + COL.b], ["Dependent", d.dependent, COL.c]]} />
         )}
         <Ln cells={[["Applicant Relation with Patient", d.relation]]} />
-        <Ln cells={[["Introduce by", d.introducedBy], ["Attending Dr.", d.doctor]]} />
-        <Ln cells={[["Major Problem of the Patient", d.problem]]} />
-        <Ln cells={[["Approx Hospital Expenses", d.approxExpense, 1.4], ["Approved (INR)", d.approved, 1]]} />
-        <Ln cells={[["Name of the Hospital", d.hospital]]} />
-        <Text style={[s.paperSig, { textAlign: "right" }]}>Signature App / PT</Text>
+        <Ln cells={[["Introduce by", d.introducedBy, COL.a], ["Attending Dr.", d.doctor, COL.b + COL.c]]} />
+        <LongLn label="Major Problem of the Patient" value={d.problem} />
+        {/* The last lines of the case stay with the applicant's signature. */}
+        <View wrap={false}>
+          <Ln cells={[["Approx Hospital Expenses", d.approxExpense, COL.a + COL.b], ["Approved", d.approved, COL.c]]} />
+          <Ln cells={[["Name of the Hospital", d.hospital]]} />
+          <Text style={[s.paperSig, { textAlign: "right" }]}>Signature App / PT</Text>
+        </View>
 
         <View style={s.solid} />
         {pays.map((p, i) => (
           <View key={i} wrap={false} style={i ? { marginTop: 6, paddingTop: 2, borderTopWidth: 0.5, borderTopColor: RULE } : {}}>
-            <Ln cells={[["Cheque", p.cheque, 1.1], ["INR", p.amount, 1], ["Bank", p.bank, 1.1]]} />
-            <Ln cells={[["Payment Date", p.date, 1.1], ["Mod of Transfer", p.mode, 1.2], ["Towards", p.towards, 1]]} />
+            <Ln cells={[["Cheque", p.cheque, COL.a], ["INR", p.amount, COL.b], ["Bank", p.bank, COL.c]]} />
+            <Ln cells={[["Payment Date", p.date, COL.a], ["Mod of Transfer", p.mode, COL.b], ["Towards", p.towards, COL.c]]} />
             <Ln cells={[["Name of the Hospital", p.hospital]]} />
             <Ln cells={[["Remark", p.remark]]} />
           </View>
@@ -262,16 +284,16 @@ export function PaymentReceipt({ org, d, printed }: { org: Org; d: PaymentReceip
       <Page size="A4" style={[s.page, { paddingTop: 28 }]}>
         <Letterhead org={org} />
         <Text style={s.paperTitle}>Payment receipt</Text>
-        <Ln cells={[["Voucher no", d.voucherNo, 1.2], ["Date:", d.date, 1]]} />
+        <Ln cells={[["Voucher no", d.voucherNo, COL.a + COL.b], ["Date:", d.date, COL.c]]} />
         <Ln cells={[["Paid to", d.paidTo]]} />
         <Ln cells={[["The sum of Rupees", d.words]]} />
         <View style={[s.line, { marginTop: 12, alignItems: "center" }]}>
           <Text style={s.lineLabel}>INR</Text>
           <Text style={[s.amount, { borderWidth: 1, borderColor: NAVY, borderRadius: 3, paddingHorizontal: 8, paddingVertical: 2 }]}>{d.amount}</Text>
         </View>
-        <Ln cells={[["Mod of Transfer", d.mode, 1], [d.reference.label, d.reference.value, 1.3]]} />
-        <Ln cells={[["From bank", d.fromBank, 1.3], ["Towards", d.towards, 1]]} />
-        <Ln cells={[["Case no", d.caseNo, 1], ["Patient", d.patient, 1.3]]} />
+        <Ln cells={[["Mod of Transfer", d.mode, COL.a], [d.reference.label, d.reference.value, COL.b + COL.c]]} />
+        <Ln cells={[["From bank", d.fromBank, COL.a], ["Towards", d.towards, COL.b + COL.c]]} />
+        <Ln cells={[["Case no", d.caseNo, COL.a], ["Patient", d.patient, COL.b + COL.c]]} />
         <Text style={{ marginTop: 16, fontSize: 11, lineHeight: 1.5 }}>
           {org.name} has paid the amount above towards the medical treatment of the patient named, under case {d.caseNo}.
         </Text>
