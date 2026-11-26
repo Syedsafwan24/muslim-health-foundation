@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireViewContext } from "@/lib/auth/context";
 import { LoginForm } from "./login-form";
+import { MhfLogo } from "@/components/app/mhf-logo";
 
 export const metadata: Metadata = { title: "Sign in" };
 
@@ -14,7 +15,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <main className="grid min-h-dvh place-items-center bg-paper px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center gap-3">
-          <span aria-hidden className="grid size-11 place-items-center rounded-full border-2 border-navy-700 text-label font-semibold text-navy-700">MHF</span>
+          <MhfLogo className="size-11 shrink-0" />
           <div>
             <h1 className="text-h2 text-navy-900">Muslim Health Foundation<sup aria-label="registered">®</sup></h1>
             <p className="text-label text-slate-body">Medical aid register · Bhatkal</p>

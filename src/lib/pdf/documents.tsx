@@ -1,6 +1,7 @@
 import "server-only";
 import path from "node:path";
-import { Document, Font, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
+import { Circle, Document, Font, Page, Path, StyleSheet, Svg, Text, View, renderToBuffer } from "@react-pdf/renderer";
+import { LOGO_LETTERS } from "@/lib/logo";
 import type { ReactElement } from "react";
 
 // Server-side PDFs. Every page carries a footer with the reference, who printed it and when,
@@ -48,8 +49,6 @@ const s = StyleSheet.create({
   note: { fontSize: 9, color: SLATE, marginTop: 4 },
   // The paper application form: letterhead, then label + value on a dotted line.
   lhRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  seal: { width: 40, height: 40, borderRadius: 20, backgroundColor: NAVY, alignItems: "center", justifyContent: "center" },
-  sealText: { color: "#FFFFFF", fontSize: 10, fontWeight: 600 },
   lhName: { fontSize: 19, fontWeight: 600, color: NAVY, letterSpacing: 0.5 },
   lhReg: { fontSize: 8, fontWeight: 600, color: NAVY, marginLeft: 1 },
   lhAddr: { fontSize: 10.5, color: INK, textAlign: "center", marginTop: 3 },
@@ -96,7 +95,12 @@ function Footer({ printed }: { printed: Printed }) {
   );
 }
 
-const Seal = () => <View style={s.seal}><Text style={s.sealText}>MHF</Text></View>;
+const Seal = () => (
+  <Svg viewBox="0 0 100 100" style={{ width: 44, height: 44 }}>
+    <Circle cx="50" cy="50" r="50" fill={NAVY} />
+    <Path d={LOGO_LETTERS} fill="#FFFFFF" />
+  </Svg>
+);
 
 /** The letterhead of the MHF paper form: seal, name with ®, address, double rule. */
 function Letterhead({ org }: { org: Org }) {

@@ -12,6 +12,7 @@ import {
   SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarRail, SidebarSeparator, useSidebar,
 } from "@/components/ui/sidebar";
 import { signOutAction } from "@/app/(app)/prefs-actions";
+import { MhfLogo } from "./mhf-logo";
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS; badge?: number };
 export type NavGroup = { label?: string; items: NavItem[] };
@@ -60,7 +61,7 @@ export function AppSidebar({ groups, footer, user }: { groups: NavGroup[]; foote
     <Sidebar collapsible="icon">
       <SidebarHeader className="h-16 justify-center">
         <Link href="/dashboard" className="flex items-center gap-3 px-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-          <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-white/80 text-caption font-semibold text-white">MHF</span>
+          <MhfLogo inverse className="size-9 shrink-0" />
           <span className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
             <span className="text-ui font-semibold text-white">Muslim Health Foundation<sup aria-label="registered">®</sup></span>
             <span className="text-caption text-white/60">Bhatkal</span>
