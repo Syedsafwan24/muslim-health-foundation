@@ -71,7 +71,7 @@ export function FilterBar({ filters, presets }: { filters: Filter[]; presets?: {
             );
           }
           return (
-            <div key={f.name} className={cn(fold, "flex flex-col gap-1 max-md:basis-[calc(50%-0.25rem)]")}>
+            <div key={f.name} className={cn(fold, "flex flex-col gap-1 max-md:basis-[calc(50%-0.3rem)]")}>
               <label htmlFor={id} className="text-caption text-slate-body">{f.label}</label>
               {f.type === "select" ? (
                 <Select id={id} className="w-full md:w-auto md:min-w-40 md:max-w-72" value={value} onChange={(e) => set(f.name, e.target.value)} options={f.options} placeholder="All" clearable />

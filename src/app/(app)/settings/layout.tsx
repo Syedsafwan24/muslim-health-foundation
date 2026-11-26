@@ -16,7 +16,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   return (
     <>
       <PageHeader title="Settings" meta={all && !can(ctx, "settings.write") ? <>Read-only for your role</> : undefined} />
-      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[220px_1fr]">
         <SettingsNav tabs={tabs} />
         <div className="min-w-0">{children}</div>
       </div>

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 export function SettingsNav({ tabs }: { tabs: { href: string; label: string }[] }) {
   const pathname = usePathname();
   return (
-    <nav aria-label="Settings" className="lg:sticky lg:top-20 lg:self-start">
+    <nav aria-label="Settings" className="min-w-0 lg:sticky lg:top-20 lg:self-start">
       <ul className="flex gap-1 overflow-x-auto lg:flex-col">
         {tabs.map((t) => {
           const active = pathname === t.href;

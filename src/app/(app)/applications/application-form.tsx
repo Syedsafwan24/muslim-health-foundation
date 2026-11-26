@@ -235,7 +235,7 @@ export function ApplicationForm({
                 <span className={cn("grid size-5 place-items-center rounded-full text-caption tabular-nums", i === step ? "bg-white text-navy-700" : "border border-current")}>{i < step ? <Check className="size-3" aria-hidden /> : i + 1}</span>
                 <span className={i === step ? "" : "sr-only sm:not-sr-only"}>{label}</span>
               </button>
-              {i < STEPS.length - 1 && <span aria-hidden className="h-px w-2 bg-rule sm:w-4" />}
+              {i < STEPS.length - 1 && <span aria-hidden className="hidden h-px w-4 bg-rule sm:block" />}
             </li>
           ))}
         </ol>
